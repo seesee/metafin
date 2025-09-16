@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+.svelte-kit/
+coverage/
+*.log
+.env*
+!.env.example
+pnpm-lock.yaml
+*.db
+*.db-journal

@@ -137,3 +137,15 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# metafin specific
+/data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+build/
+
+# IDE
+.vscode/settings.json
+.idea/
