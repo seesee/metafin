@@ -2,9 +2,29 @@
   import { onMount } from 'svelte';
   import { apiClient, ApiError } from '$lib/api/client.js';
 
+  interface MetafinInfo {
+    version: string;
+    environment: string;
+    uptime: number;
+    basePath: string;
+    configuration: {
+      hasJellyfinConfig: boolean;
+      hasTmdbConfig: boolean;
+    };
+  }
+
+  interface DatabaseInfo {
+    stats: {
+      itemCount: number;
+      libraryCount: number;
+      collectionCount: number;
+      jobCount: number;
+    };
+  }
+
   let healthData: {
-    metafin: { status: string; info: unknown };
-    database: { status: string; info: unknown };
+    metafin: { status: string; info: MetafinInfo };
+    database: { status: string; info: DatabaseInfo };
   } | null = null;
   let helloData: { message: string; timestamp: string } | null = null;
   let loading = true;
@@ -18,7 +38,7 @@
         apiClient.getHello(),
       ]);
 
-      healthData = health;
+      healthData = health as typeof healthData;
       helloData = hello;
     } catch (err) {
       if (err instanceof ApiError) {
