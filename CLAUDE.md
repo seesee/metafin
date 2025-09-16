@@ -154,3 +154,52 @@ Remember
 
 - Prefer the simplest solution that fully meets requirements.
 - Make it easy to revert or iterate: small PRs, obvious tests, and clear rationale.
+
+# Development Environment Setup
+
+## Current Implementation Status
+
+✅ Backend: NestJS + Prisma + SQLite with provider system (TVMaze, Wikidata)
+✅ Frontend: SvelteKit + Tailwind with comprehensive metadata editing UI
+✅ Database: Initialized with migrations and connected
+✅ Full-stack integration: Both servers working together
+
+## Quick Start Commands
+
+### Backend (Port 8080)
+
+```bash
+cd apps/backend
+DATABASE_URL="file:./prisma/dev.db" JELLYFIN_URL=http://localhost:8096 JELLYFIN_API_KEY=test pnpm start
+```
+
+### Frontend (Port 3000)
+
+```bash
+cd apps/frontend
+pnpm dev
+```
+
+### Database Management
+
+```bash
+cd apps/backend
+DATABASE_URL="file:./prisma/dev.db" pnpm prisma migrate dev --name <migration-name>
+DATABASE_URL="file:./prisma/dev.db" pnpm prisma studio  # Database UI
+```
+
+## API Endpoints Available
+
+- `GET /api/hello` - Test endpoint
+- `GET /api/health` - System health status
+- `GET /api/providers/health` - Provider status
+- `POST /api/providers/search` - Search across providers
+- Full metadata and library management endpoints
+
+## Current Capabilities
+
+- Comprehensive metadata editing forms with all field types
+- Provider integration with TVMaze and Wikidata
+- Artwork management and upload functionality
+- Library browsing with search and filtering
+- Full health monitoring and status reporting
