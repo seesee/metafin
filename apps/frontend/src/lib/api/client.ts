@@ -1,13 +1,13 @@
 import { dev } from '$app/environment';
 import { base } from '$app/paths';
-import type { ApiResponse, ApiError as SharedApiError } from '@metafin/shared';
+import type { ApiError as SharedApiError } from '@metafin/shared';
 
 export class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    // In development, use the proxy. In production, use the base path
-    this.baseUrl = dev ? '' : base;
+    // In development, connect directly to backend port. In production, use the base path
+    this.baseUrl = dev ? 'http://localhost:8081' : base;
   }
 
   private async makeRequest<T>(
@@ -43,8 +43,8 @@ export class ApiClient {
       throw new ApiError(errorData);
     }
 
-    const data: ApiResponse<T> = await response.json();
-    return data.data;
+    const data: T = await response.json();
+    return data;
   }
 
   async get<T>(endpoint: string): Promise<T> {

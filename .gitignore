@@ -149,3 +149,8 @@ build/
 # IDE
 .vscode/settings.json
 .idea/
+
+# API keys and secrets
+JELLYFIN-API-KEY.txt
+*-API-KEY.txt
+*.key

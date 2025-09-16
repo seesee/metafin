@@ -41,7 +41,7 @@
     {
       "files": ["apps/backend/src/**/*.ts"],
       "parserOptions": {
-        "project": "./apps/backend/tsconfig.json"
+        "project": ["./apps/backend/tsconfig.json"]
       },
       "extends": [
         "eslint:recommended",

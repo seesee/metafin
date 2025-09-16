@@ -3,18 +3,29 @@
   import { apiClient, ApiError } from '$lib/api/client.js';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import SearchBar from '$lib/components/SearchBar.svelte';
-  import type { ProviderType, ProviderSearchResult } from '@metafin/shared';
 
   interface ProviderHealth {
-    provider: ProviderType;
+    provider: string;
     name: string;
     healthy: boolean;
     message?: string;
   }
 
   interface SearchResults {
-    provider: ProviderType;
-    results: ProviderSearchResult[];
+    provider: string;
+    results: Array<{
+      id: string;
+      name: string;
+      year?: number;
+      overview?: string;
+      confidence: number;
+      language?: string;
+      country?: string;
+      network?: string;
+      status?: string;
+      genres?: string[];
+      posterUrl?: string;
+    }>;
     error?: string;
   }
 
@@ -70,7 +81,7 @@
     }
   }
 
-  function getProviderIcon(provider: ProviderType): string {
+  function getProviderIcon(provider: string): string {
     switch (provider) {
       case 'tvmaze':
         return '📺';
@@ -83,7 +94,7 @@
     }
   }
 
-  function getProviderColor(provider: ProviderType): string {
+  function getProviderColor(provider: string): string {
     switch (provider) {
       case 'tvmaze':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
