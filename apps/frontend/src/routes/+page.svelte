@@ -50,7 +50,7 @@
   <title>metafin - Jellyfin Metadata Manager</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8 max-w-4xl">
+<div class="container mx-auto px-6 py-8 max-w-6xl">
   <header class="mb-8 text-center">
     <h1
       class="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"

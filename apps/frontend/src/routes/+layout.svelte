@@ -2,6 +2,7 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
+  import Navigation from '$lib/components/Navigation.svelte';
 
   // Theme management
   let theme = 'light';
@@ -13,6 +14,14 @@
       theme = localStorage.getItem('theme') || 'light';
       highContrast = localStorage.getItem('highContrast') === 'true';
       applyTheme();
+
+      // Make theme functions available globally for Navigation component
+      const win = window as typeof window & {
+        toggleTheme?: () => void;
+        toggleHighContrast?: () => void;
+      };
+      win.toggleTheme = toggleTheme;
+      win.toggleHighContrast = toggleHighContrast;
 
       // Listen for system theme changes
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -72,11 +81,23 @@
       applyTheme();
     }
   }
+
+  // Determine if we should show navigation (hide on certain routes if needed)
+  $: showNavigation = true; // For now, always show navigation
 </script>
 
-<main class="min-h-screen">
-  <slot />
-</main>
+{#if showNavigation}
+  <div class="flex min-h-screen">
+    <Navigation />
+    <main class="flex-1 overflow-auto">
+      <slot />
+    </main>
+  </div>
+{:else}
+  <main class="min-h-screen">
+    <slot />
+  </main>
+{/if}
 
 <style>
   :global(html) {

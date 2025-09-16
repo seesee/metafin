@@ -88,6 +88,95 @@ export class ApiClient {
   async getHello(): Promise<{ message: string; timestamp: string }> {
     return this.get('hello');
   }
+
+  // Provider endpoints
+  async getProviderHealth(): Promise<
+    Array<{
+      provider: string;
+      name: string;
+      healthy: boolean;
+      message?: string;
+    }>
+  > {
+    return this.get('providers/health');
+  }
+
+  async getProviderConfigs(): Promise<
+    Array<{
+      type: string;
+      enabled: boolean;
+      rateLimit: number;
+      timeout: number;
+    }>
+  > {
+    return this.get('providers/configs');
+  }
+
+  async searchProviders(request: {
+    query: string;
+    year?: number;
+    language?: string;
+    includeAdult?: boolean;
+  }): Promise<
+    Array<{
+      provider: string;
+      results: Array<{
+        id: string;
+        name: string;
+        year?: number;
+        overview?: string;
+        confidence: number;
+        language?: string;
+        country?: string;
+        network?: string;
+        status?: string;
+        genres?: string[];
+        posterUrl?: string;
+      }>;
+      error?: string;
+    }>
+  > {
+    return this.post('providers/search', request);
+  }
+
+  // Library endpoints
+  async getLibraryItems(params?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    library?: string;
+    search?: string;
+  }): Promise<{
+    items: Array<{
+      id: string;
+      jellyfinId: string;
+      name: string;
+      type: string;
+      year?: number;
+      overview?: string;
+      parentName?: string;
+      libraryName: string;
+      hasArtwork: boolean;
+      lastSyncAt: string;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          query.set(key, String(value));
+        }
+      });
+    }
+
+    const endpoint = query.toString()
+      ? `library/items?${query}`
+      : 'library/items';
+    return this.get(endpoint);
+  }
 }
 
 export class ApiError extends Error {

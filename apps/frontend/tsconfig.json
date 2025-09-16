@@ -12,7 +12,9 @@
     "strict": true,
     "moduleResolution": "bundler",
     "paths": {
-      "@metafin/shared": ["../../packages/shared/dist"]
+      "@metafin/shared": ["../../packages/shared/dist"],
+      "$lib": ["./src/lib"],
+      "$lib/*": ["./src/lib/*"]
     }
   }
 }
