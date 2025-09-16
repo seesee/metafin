@@ -73,6 +73,8 @@ export interface LibraryInfo {
 }
 
 export interface ArtworkCandidate {
+  id?: string;
+  itemId: string;
   type: ArtworkType;
   url: string;
   width?: number;

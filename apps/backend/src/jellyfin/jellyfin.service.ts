@@ -209,6 +209,181 @@ export class JellyfinService {
     });
   }
 
+  // Metadata write operations
+  async updateItemMetadata(
+    itemId: string,
+    metadata: {
+      name?: string;
+      overview?: string;
+      genres?: string[];
+      tags?: string[];
+      people?: Array<{ name: string; role?: string; type: string }>;
+      studios?: string[];
+      providerIds?: Record<string, string>;
+      premiereDate?: string;
+      endDate?: string;
+      productionYear?: number;
+      officialRating?: string;
+      communityRating?: number;
+    }
+  ): Promise<void> {
+    const item = await this.getItem(itemId);
+
+    const updatedItem = {
+      ...item,
+      Name: metadata.name ?? item.name,
+      Overview: metadata.overview ?? item.overview,
+      Genres: metadata.genres ?? item.genres,
+      Tags: metadata.tags ?? item.tags,
+      People:
+        metadata.people?.map((p) => ({
+          Name: p.name,
+          Role: p.role,
+          Type: p.type,
+        })) ?? item.people,
+      Studios: metadata.studios?.map((s) => ({ Name: s })) ?? item.studios,
+      ProviderIds: { ...item.providerIds, ...metadata.providerIds },
+      PremiereDate: metadata.premiereDate ?? item.premiereDate,
+      EndDate: metadata.endDate ?? item.endDate,
+      ProductionYear: metadata.productionYear ?? item.year,
+      OfficialRating: metadata.officialRating,
+      CommunityRating: metadata.communityRating,
+    };
+
+    await this.request(`/Items/${itemId}`, {
+      method: 'POST',
+      body: updatedItem,
+    });
+  }
+
+  // Artwork operations
+  async uploadArtwork(
+    itemId: string,
+    artworkType: string,
+    imageData: Buffer,
+    contentType: string
+  ): Promise<void> {
+    const url = `/Items/${itemId}/Images/${artworkType}`;
+
+    const response = await fetch(
+      new URL(url, this.config.requireJellyfinConfig().url).toString(),
+      {
+        method: 'POST',
+        headers: {
+          ...this.getHeaders(),
+          'Content-Type': contentType,
+        },
+        body: imageData,
+      }
+    );
+
+    if (!response.ok) {
+      throw AppError.jellyfinError(
+        `Failed to upload ${artworkType} artwork: ${response.status} ${response.statusText}`,
+        response.status,
+        { itemId, artworkType }
+      );
+    }
+  }
+
+  async downloadArtwork(
+    itemId: string,
+    artworkType: string,
+    maxWidth?: number,
+    maxHeight?: number
+  ): Promise<Buffer> {
+    const params: Record<string, string> = {};
+    if (maxWidth) params.maxWidth = String(maxWidth);
+    if (maxHeight) params.maxHeight = String(maxHeight);
+
+    const url = new URL(
+      `/Items/${itemId}/Images/${artworkType}`,
+      this.config.requireJellyfinConfig().url
+    );
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+
+    const response = await fetch(url.toString(), {
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw AppError.jellyfinError(
+        `Failed to download ${artworkType} artwork: ${response.status} ${response.statusText}`,
+        response.status,
+        { itemId, artworkType }
+      );
+    }
+
+    return Buffer.from(await response.arrayBuffer());
+  }
+
+  async deleteArtwork(itemId: string, artworkType: string): Promise<void> {
+    await this.request(`/Items/${itemId}/Images/${artworkType}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Collection operations
+  async createCollection(
+    name: string,
+    itemIds: string[]
+  ): Promise<{ Id: string }> {
+    const response = await this.request<{ Id: string }>('/Collections', {
+      method: 'POST',
+      body: {
+        Name: name,
+        Ids: itemIds,
+      },
+    });
+
+    return response.data;
+  }
+
+  async addItemsToCollection(
+    collectionId: string,
+    itemIds: string[]
+  ): Promise<void> {
+    await this.request(`/Collections/${collectionId}/Items`, {
+      method: 'POST',
+      params: {
+        Ids: itemIds.join(','),
+      },
+    });
+  }
+
+  async removeItemsFromCollection(
+    collectionId: string,
+    itemIds: string[]
+  ): Promise<void> {
+    await this.request(`/Collections/${collectionId}/Items`, {
+      method: 'DELETE',
+      params: {
+        Ids: itemIds.join(','),
+      },
+    });
+  }
+
+  async deleteCollection(collectionId: string): Promise<void> {
+    await this.request(`/Items/${collectionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getCollections(userId?: string): Promise<JellyfinItem[]> {
+    const endpoint = userId ? `/Users/${userId}/Items` : '/Items';
+    const response = await this.request<{ Items: JellyfinItem[] }>(endpoint, {
+      params: {
+        IncludeItemTypes: 'BoxSet',
+        Recursive: true,
+        Fields: 'ProviderIds,Overview',
+      },
+    });
+
+    return response.data.Items;
+  }
+
   async refreshMetadata(
     itemId: string,
     options: {
