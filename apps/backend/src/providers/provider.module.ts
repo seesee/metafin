@@ -5,6 +5,7 @@ import { ConfigService } from '../modules/config/config.service.js';
 import { ProviderRegistryService } from './provider-registry.service.js';
 import { ProviderController } from './provider.controller.js';
 import { TVMazeProvider } from './tvmaze/tvmaze.provider.js';
+import { WikidataProvider } from './wikidata/wikidata.provider.js';
 
 @Module({
   imports: [ConfigModule, LoggerModule],
@@ -31,6 +32,12 @@ export class ProviderModule implements OnModuleInit {
       this.providerRegistry.registerProvider(tvmazeProvider);
     }
 
-    // TODO: Initialize other providers as they are implemented
+    // Initialize Wikidata provider
+    if (configs.wikidata.enabled) {
+      const wikidataProvider = new WikidataProvider(configs.wikidata);
+      this.providerRegistry.registerProvider(wikidataProvider);
+    }
+
+    // TODO: Initialize TMDb provider when implemented
   }
 }
