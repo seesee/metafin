@@ -1,0 +1,2 @@
+# metafin
+Jellyfin Metadata Updater
