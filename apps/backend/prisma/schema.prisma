@@ -21,7 +21,8 @@ model Setting {
 }
 
 model Library {
-  id            String   @id
+  id            String   @id @default(cuid())
+  jellyfinId    String   @unique
   name          String
   type          String
   locations     String // JSON array of location paths
@@ -36,7 +37,8 @@ model Library {
 }
 
 model Item {
-  id              String    @id
+  id              String    @id @default(cuid())
+  jellyfinId      String    @unique
   name            String
   type            String // Series, Season, Episode, Movie, Collection
   overview        String?
@@ -53,21 +55,22 @@ model Item {
   runtimeMins     Int? // Derived runtime in minutes
   indexNumber     Int? // Episode/season number
   parentIndexNumber Int? // Season number for episodes
-  genres          String // JSON array
-  tags            String // JSON array
-  studios         String // JSON array
+  providerIds     String   @default("{}") // JSON object
+  genres          String   @default("[]") // JSON array
+  tags            String   @default("[]") // JSON array
+  studios         String   @default("[]") // JSON array
   hasArtwork      Boolean  @default(false)
   imageBlurHashes String? // JSON object of artwork blur hashes
   suspectedMisclassification Boolean @default(false)
   misclassificationScore Float?
   misclassificationReasons String? // JSON array of reasons
+  lastSyncAt      DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   library     Library        @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   parent      Item?          @relation("ItemHierarchy", fields: [parentId], references: [id])
   children    Item[]         @relation("ItemHierarchy")
-  providerIds ProviderIdMap[]
   artwork     ArtworkCandidate[]
   people      PersonInfo[]
   collections CollectionItem[]
@@ -81,20 +84,6 @@ model Item {
   @@map("items")
 }
 
-model ProviderIdMap {
-  id         String @id @default(cuid())
-  itemId     String
-  provider   String // tvdb, tmdb, imdb, tvmaze, wikidata, etc.
-  providerId String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
-
-  @@unique([itemId, provider])
-  @@index([provider, providerId])
-  @@map("provider_ids")
-}
 
 model ArtworkCandidate {
   id         String  @id @default(cuid())

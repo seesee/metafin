@@ -4,6 +4,7 @@ import { LoggerModule } from './modules/logger/logger.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { JellyfinModule } from './jellyfin/jellyfin.module.js';
+import { LibraryModule } from './library/library.module.js';
 import { AppController } from './app.controller.js';
 
 @Module({
@@ -12,6 +13,7 @@ import { AppController } from './app.controller.js';
     LoggerModule,
     DatabaseModule,
     JellyfinModule,
+    LibraryModule,
     HealthModule,
   ],
   controllers: [AppController],
