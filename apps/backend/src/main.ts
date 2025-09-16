@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module.js';
 import { LoggerService } from './modules/logger/logger.service.js';
+import { ConfigService } from './modules/config/config.service.js';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
 import helmet from 'helmet';
 
@@ -34,7 +35,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new GlobalExceptionFilter(logger));
 
   // Get configuration
-  const configService = app.get('ConfigService');
+  const configService = app.get(ConfigService);
   const port = configService.get('APP_PORT') || 8080;
   const basePath = configService.get('BASE_PATH') || '';
 

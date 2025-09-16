@@ -6,6 +6,7 @@ import {
 } from '@nestjs/terminus';
 import { ConfigService } from '../config/config.service.js';
 import { DatabaseService } from '../../database/database.service.js';
+import { JellyfinService } from '../../jellyfin/jellyfin.service.js';
 
 @Controller('api/health')
 export class HealthController {
@@ -14,7 +15,8 @@ export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
     private readonly configService: ConfigService,
-    private readonly databaseService: DatabaseService
+    private readonly databaseService: DatabaseService,
+    private readonly jellyfinService: JellyfinService
   ) {}
 
   @Get()
@@ -23,6 +25,7 @@ export class HealthController {
     return this.health.check([
       async () => this.getHealthInfo(),
       async () => this.getDatabaseHealth(),
+      async () => this.getJellyfinHealth(),
     ]);
   }
 
@@ -67,10 +70,28 @@ export class HealthController {
       database: {
         status: dbHealth.status,
         info: {
-          ...dbHealth.info,
+          ...(dbHealth.info as Record<string, unknown>),
           stats,
         },
       },
+    };
+  }
+
+  private async getJellyfinHealth(): Promise<HealthIndicatorResult> {
+    if (!this.configService.hasJellyfinConfig) {
+      return {
+        jellyfin: {
+          status: 'down',
+          info: {
+            error: 'Jellyfin not configured',
+          },
+        },
+      };
+    }
+
+    const jellyfinHealth = await this.jellyfinService.checkHealth();
+    return {
+      jellyfin: jellyfinHealth,
     };
   }
 }

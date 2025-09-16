@@ -3,10 +3,17 @@ import { ConfigModule } from './modules/config/config.module.js';
 import { LoggerModule } from './modules/logger/logger.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { DatabaseModule } from './database/database.module.js';
+import { JellyfinModule } from './jellyfin/jellyfin.module.js';
 import { AppController } from './app.controller.js';
 
 @Module({
-  imports: [ConfigModule, LoggerModule, DatabaseModule, HealthModule],
+  imports: [
+    ConfigModule,
+    LoggerModule,
+    DatabaseModule,
+    JellyfinModule,
+    HealthModule,
+  ],
   controllers: [AppController],
   providers: [],
 })

@@ -148,3 +148,90 @@ export interface BulkOperationPreview {
   estimatedDuration: number;
   warnings: string[];
 }
+
+// Additional Jellyfin API types for HTTP client
+export interface JellyfinUser {
+  Id: string;
+  Name: string;
+  ServerId: string;
+  ConnectUserName?: string;
+  ConnectUserId?: string;
+  HasPassword: boolean;
+  HasConfiguredPassword: boolean;
+  HasConfiguredEasyPassword: boolean;
+  EnableAutoLogin?: boolean;
+  LastLoginDate?: string;
+  LastActivityDate?: string;
+}
+
+export interface JellyfinSystemInfo {
+  SystemUpdateLevel: string;
+  OperatingSystemDisplayName: string;
+  HasPendingRestart: boolean;
+  IsShuttingDown: boolean;
+  SupportsLibraryMonitor: boolean;
+  WebSocketPortNumber: number;
+  CompletedInstallations: unknown[];
+  CanSelfRestart: boolean;
+  CanSelfUpdate: boolean;
+  CanLaunchWebBrowser: boolean;
+  ProgramDataPath: string;
+  WebPath: string;
+  ItemsByNamePath: string;
+  CachePath: string;
+  LogPath: string;
+  InternalMetadataPath: string;
+  TranscodingTempPath: string;
+  HttpServerPortNumber: number;
+  SupportsHttps: boolean;
+  HttpsPortNumber: number;
+  HasUpdateAvailable: boolean;
+  SupportsAutoRunAtStartup: boolean;
+  HardwareAccelerationRequiresPremiere: boolean;
+  LocalAddress: string;
+  WanAddress: string;
+  RemoteAddresses: string[];
+  ServerName: string;
+  Version: string;
+  OperatingSystem: string;
+  Id: string;
+}
+
+export interface JellyfinLibrary {
+  Id: string;
+  Name: string;
+  CollectionType?: string;
+  LocationType: string;
+  Locations: string[];
+  LibraryOptions?: {
+    EnablePhotos: boolean;
+    EnableRealtimeMonitor: boolean;
+    EnableChapterImageExtraction: boolean;
+    ExtractChapterImagesDuringLibraryScan: boolean;
+    PathInfos: Array<{
+      Path: string;
+      NetworkPath?: string;
+    }>;
+  };
+}
+
+export interface JellyfinItemsQuery {
+  userId?: string;
+  parentId?: string;
+  includeItemTypes?: string[];
+  excludeItemTypes?: string[];
+  recursive?: boolean;
+  fields?: string[];
+  startIndex?: number;
+  limit?: number;
+  sortBy?: string[];
+  sortOrder?: 'Ascending' | 'Descending';
+  filters?: string[];
+  searchTerm?: string;
+}
+
+export interface JellyfinItemsResponse {
+  Items: JellyfinItem[];
+  TotalRecordCount: number;
+  StartIndex: number;
+}
