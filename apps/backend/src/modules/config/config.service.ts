@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService as NestConfigService } from '@nestjs/config';
 import { Config } from './config.schema.js';
+import { ProviderType } from '@metafin/shared';
 
 @Injectable()
 export class ConfigService {
@@ -90,5 +91,29 @@ export class ConfigService {
     }
 
     return { url, apiKey };
+  }
+
+  getProviderConfigs() {
+    return {
+      tvmaze: {
+        type: ProviderType.TVMaze,
+        enabled: true,
+        rateLimit: 1, // TVMaze allows 1 request per second
+        timeout: 30000,
+      },
+      wikidata: {
+        type: ProviderType.Wikidata,
+        enabled: true,
+        rateLimit: 5, // Wikidata allows higher rate limits
+        timeout: 30000,
+      },
+      tmdb: {
+        type: ProviderType.TMDb,
+        enabled: !!this.tmdbApiKey,
+        apiKey: this.tmdbApiKey,
+        rateLimit: 40, // TMDb allows 40 requests per 10 seconds
+        timeout: 30000,
+      },
+    };
   }
 }

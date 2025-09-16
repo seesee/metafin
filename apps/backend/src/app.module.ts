@@ -6,6 +6,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { JellyfinModule } from './jellyfin/jellyfin.module.js';
 import { LibraryModule } from './library/library.module.js';
 import { MetadataModule } from './metadata/metadata.module.js';
+import { ProviderModule } from './providers/provider.module.js';
 import { AppController } from './app.controller.js';
 
 @Module({
@@ -16,6 +17,7 @@ import { AppController } from './app.controller.js';
     JellyfinModule,
     LibraryModule,
     MetadataModule,
+    ProviderModule,
     HealthModule,
   ],
   controllers: [AppController],
