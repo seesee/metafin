@@ -130,4 +130,160 @@ export class BulkOperationsController {
       result: results[0],
     };
   }
+
+  @Post('artwork/aggregate')
+  async bulkAggregateArtwork(
+    @Body()
+    body: {
+      itemIds: string[];
+      types?: string[];
+      language?: string;
+      autoStore?: boolean;
+      forceRefresh?: boolean;
+    }
+  ) {
+    const results = await this.bulkOperationsService.bulkAggregateArtwork(
+      body.itemIds,
+      {
+        types: body.types,
+        language: body.language,
+        autoStore: body.autoStore,
+        forceRefresh: body.forceRefresh,
+      }
+    );
+
+    const successCount = results.filter((r) => r.success).length;
+    const totalCandidatesFound = results.reduce(
+      (sum, r) => sum + ((r.changes?.artworkCandidatesFound?.to as number) || 0),
+      0
+    );
+    const totalCandidatesStored = results.reduce(
+      (sum, r) => sum + ((r.changes?.artworkCandidatesStored?.to as number) || 0),
+      0
+    );
+
+    return {
+      message: `Artwork aggregation completed: ${successCount} items processed successfully`,
+      summary: {
+        total: results.length,
+        successful: successCount,
+        failed: results.length - successCount,
+        totalCandidatesFound,
+        totalCandidatesStored,
+      },
+      results,
+    };
+  }
+
+  @Post('metadata/refresh')
+  async bulkRefreshMetadata(
+    @Body()
+    body: {
+      itemIds: string[];
+      provider?: string;
+      autoApply?: boolean;
+      confidenceThreshold?: number;
+    }
+  ) {
+    const results = await this.bulkOperationsService.bulkRefreshMetadata(
+      body.itemIds,
+      {
+        provider: body.provider,
+        autoApply: body.autoApply,
+        confidenceThreshold: body.confidenceThreshold,
+      }
+    );
+
+    const successCount = results.filter((r) => r.success).length;
+    const totalMatches = results.reduce(
+      (sum, r) => sum + ((r.changes?.matchesFound?.to as number) || 0),
+      0
+    );
+
+    return {
+      message: `Metadata refresh completed: ${successCount} items processed successfully`,
+      summary: {
+        total: results.length,
+        successful: successCount,
+        failed: results.length - successCount,
+        totalMatches,
+        autoApplied: body.autoApply ? successCount : 0,
+      },
+      results,
+    };
+  }
+
+  @Post('artwork/apply-best')
+  async bulkApplyBestArtwork(
+    @Body()
+    body: {
+      itemIds: string[];
+      artworkTypes?: string[];
+      confidenceThreshold?: number;
+    }
+  ) {
+    const results = await this.bulkOperationsService.bulkApplyBestArtwork(
+      body.itemIds,
+      {
+        artworkTypes: body.artworkTypes,
+        confidenceThreshold: body.confidenceThreshold,
+      }
+    );
+
+    const successCount = results.filter((r) => r.success).length;
+
+    return {
+      message: `Applied best artwork for ${successCount} items`,
+      summary: {
+        total: results.length,
+        successful: successCount,
+        failed: results.length - successCount,
+        artworkTypes: body.artworkTypes || ['Primary', 'Backdrop'],
+        confidenceThreshold: body.confidenceThreshold || 0.7,
+      },
+      results,
+    };
+  }
+
+  @Post('artwork/cleanup')
+  async bulkCleanupArtworkCandidates(
+    @Body()
+    body: {
+      itemIds?: string[];
+      olderThanDays?: number;
+      keepApplied?: boolean;
+    } = {}
+  ) {
+    const results = await this.bulkOperationsService.bulkCleanupArtworkCandidates(
+      body.itemIds,
+      {
+        olderThanDays: body.olderThanDays,
+        keepApplied: body.keepApplied,
+      }
+    );
+
+    const successCount = results.filter((r) => r.success).length;
+    const totalCandidatesRemoved = results.reduce(
+      (sum, r) =>
+        sum +
+        ((r.changes?.candidatesRemoved?.to as number) || 0) +
+        ((r.changes?.totalCandidatesRemoved?.to as number) || 0),
+      0
+    );
+
+    return {
+      message: body.itemIds
+        ? `Cleaned up artwork candidates for ${successCount} items`
+        : `Cleaned up ${totalCandidatesRemoved} artwork candidates globally`,
+      summary: {
+        total: results.length,
+        successful: successCount,
+        failed: results.length - successCount,
+        totalCandidatesRemoved,
+        olderThanDays: body.olderThanDays || 30,
+        keepApplied: body.keepApplied !== false,
+      },
+      results,
+    };
+  }
 }

@@ -325,6 +325,38 @@ export class JellyfinService {
     });
   }
 
+  async applyItemArtwork(
+    itemId: string,
+    artworkType: string,
+    artworkUrl: string
+  ): Promise<void> {
+    // Download the artwork from the URL
+    const response = await fetch(artworkUrl);
+    if (!response.ok) {
+      throw AppError.jellyfinError(
+        `Failed to download artwork from ${artworkUrl}: ${response.status} ${response.statusText}`,
+        response.status,
+        { itemId, artworkType, artworkUrl }
+      );
+    }
+
+    const imageData = Buffer.from(await response.arrayBuffer());
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+
+    // Upload to Jellyfin
+    await this.uploadArtwork(itemId, artworkType, imageData, contentType);
+  }
+
+  async uploadItemArtwork(
+    itemId: string,
+    artworkType: string,
+    imageData: Buffer,
+    contentType: string
+  ): Promise<void> {
+    // This is an alias for uploadArtwork to match the interface expected by the controller
+    await this.uploadArtwork(itemId, artworkType, imageData, contentType);
+  }
+
   // Collection operations
   async createCollection(
     name: string,

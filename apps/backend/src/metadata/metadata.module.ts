@@ -12,6 +12,7 @@ import { MisclassificationService } from './misclassification.service.js';
 import { MisclassificationController } from './misclassification.controller.js';
 import { ReviewQueueService } from './review-queue.service.js';
 import { ReviewQueueController } from './review-queue.controller.js';
+import { ArtworkService } from './artwork.service.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ReviewQueueController } from './review-queue.controller.js';
     BulkOperationsService,
     MisclassificationService,
     ReviewQueueService,
+    ArtworkService,
   ],
   controllers: [
     MetadataController,
@@ -38,6 +40,7 @@ import { ReviewQueueController } from './review-queue.controller.js';
     BulkOperationsService,
     MisclassificationService,
     ReviewQueueService,
+    ArtworkService,
   ],
 })
 export class MetadataModule {}

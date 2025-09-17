@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
 import { JellyfinService } from '../jellyfin/jellyfin.service.js';
 import { ProviderRegistryService } from '../providers/provider-registry.service.js';
+import { ArtworkService } from './artwork.service.js';
 import { ProviderType } from '@metafin/shared';
 
 export interface BulkMetadataUpdate {
@@ -56,7 +57,8 @@ export class BulkOperationsService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly jellyfinService: JellyfinService,
-    private readonly providerRegistry: ProviderRegistryService
+    private readonly providerRegistry: ProviderRegistryService,
+    private readonly artworkService: ArtworkService
   ) {}
 
   async bulkUpdateMetadata(
@@ -284,7 +286,7 @@ export class BulkOperationsService {
     }> = [];
 
     const providersToSearch = providerType
-      ? [this.providerRegistry.getProvider(providerType as ProviderType)]
+      ? [this.providerRegistry.getProvider(providerType as any)]
       : this.providerRegistry.getAvailableProviders();
 
     for (const provider of providersToSearch) {
@@ -460,6 +462,251 @@ export class BulkOperationsService {
         `Bulk remove from collection failed: ${(error as Error).message}`
       );
       return itemIds.map((itemId) => ({
+        itemId,
+        success: false,
+        error: (error as Error).message,
+      }));
+    }
+  }
+
+  async bulkAggregateArtwork(
+    itemIds: string[],
+    options: {
+      types?: string[];
+      language?: string;
+      autoStore?: boolean;
+      forceRefresh?: boolean;
+    } = {}
+  ): Promise<BulkUpdateResult[]> {
+    this.logger.log(
+      `Starting bulk artwork aggregation for ${itemIds.length} items`
+    );
+
+    const results: BulkUpdateResult[] = [];
+
+    try {
+      const aggregationResults = await this.artworkService.bulkAggregateArtwork(
+        itemIds,
+        options
+      );
+
+      for (const result of aggregationResults) {
+        results.push({
+          itemId: result.itemId,
+          success: result.errors.length === 0,
+          error: result.errors.length > 0 ? result.errors.join('; ') : undefined,
+          changes: {
+            artworkCandidatesFound: {
+              from: 0,
+              to: result.candidatesFound,
+            },
+            artworkCandidatesStored: {
+              from: 0,
+              to: result.candidatesStored,
+            },
+          },
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Bulk artwork aggregation failed: ${(error as Error).message}`
+      );
+      return itemIds.map((itemId) => ({
+        itemId,
+        success: false,
+        error: (error as Error).message,
+      }));
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    this.logger.log(
+      `Bulk artwork aggregation completed: ${successCount}/${itemIds.length} items processed`
+    );
+
+    return results;
+  }
+
+  async bulkRefreshMetadata(
+    itemIds: string[],
+    options: {
+      provider?: string;
+      autoApply?: boolean;
+      confidenceThreshold?: number;
+    } = {}
+  ): Promise<BulkUpdateResult[]> {
+    this.logger.log(
+      `Starting bulk metadata refresh for ${itemIds.length} items`
+    );
+
+    // First search for fresh metadata
+    const searchResults = await this.bulkSearchAndMatch({
+      itemIds,
+      provider: options.provider,
+      autoApply: options.autoApply,
+      confidenceThreshold: options.confidenceThreshold || 0.8,
+    });
+
+    // Convert search results to update results
+    return searchResults.map((result) => {
+      const hasMatches = result.matches.length > 0;
+      const hasBestMatch = !!result.bestMatch;
+
+      return {
+        itemId: result.itemId,
+        success: hasMatches,
+        changes: {
+          matchesFound: {
+            from: 0,
+            to: result.matches.length,
+          },
+          bestMatchConfidence: {
+            from: 0,
+            to: result.bestMatch?.confidence || 0,
+          },
+        },
+      };
+    });
+  }
+
+  async bulkApplyBestArtwork(
+    itemIds: string[],
+    options: {
+      artworkTypes?: string[];
+      confidenceThreshold?: number;
+    } = {}
+  ): Promise<BulkUpdateResult[]> {
+    this.logger.log(
+      `Applying best artwork for ${itemIds.length} items`
+    );
+
+    const results: BulkUpdateResult[] = [];
+    const artworkTypes = options.artworkTypes || ['Primary', 'Backdrop'];
+    const confidenceThreshold = options.confidenceThreshold || 0.7;
+
+    for (const itemId of itemIds) {
+      try {
+        // Get best candidates for each artwork type
+        const changes: Record<string, { from: unknown; to: unknown }> = {};
+        let appliedCount = 0;
+
+        for (const artworkType of artworkTypes) {
+          const candidates = await this.artworkService.getCandidatesForItem(
+            itemId,
+            artworkType,
+            undefined,
+            false // Only unapplied candidates
+          );
+
+          const bestCandidate = candidates.find(
+            (c) => c.confidence >= confidenceThreshold
+          );
+
+          if (bestCandidate && bestCandidate.id) {
+            await this.artworkService.applyArtworkCandidate(bestCandidate.id);
+            changes[`${artworkType.toLowerCase()}Artwork`] = {
+              from: null,
+              to: bestCandidate.source,
+            };
+            appliedCount++;
+          }
+        }
+
+        results.push({
+          itemId,
+          success: appliedCount > 0,
+          changes: Object.keys(changes).length > 0 ? changes : undefined,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Failed to apply artwork for item ${itemId}: ${(error as Error).message}`
+        );
+        results.push({
+          itemId,
+          success: false,
+          error: (error as Error).message,
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    this.logger.log(
+      `Bulk artwork application completed: ${successCount}/${itemIds.length} items updated`
+    );
+
+    return results;
+  }
+
+  async bulkCleanupArtworkCandidates(
+    itemIds?: string[],
+    options: {
+      olderThanDays?: number;
+      keepApplied?: boolean;
+    } = {}
+  ): Promise<BulkUpdateResult[]> {
+    this.logger.log(
+      `Cleaning up artwork candidates for ${itemIds ? itemIds.length + ' items' : 'all items'}`
+    );
+
+    try {
+      if (itemIds) {
+        // Clean up specific items
+        const results: BulkUpdateResult[] = [];
+
+        for (const itemId of itemIds) {
+          const cutoffDate = new Date();
+          cutoffDate.setDate(cutoffDate.getDate() - (options.olderThanDays || 30));
+
+          const where: Record<string, unknown> = {
+            itemId,
+            createdAt: { lt: cutoffDate },
+          };
+
+          if (options.keepApplied !== false) {
+            where.isApplied = false;
+          }
+
+          const deletedCount = await this.databaseService.artworkCandidate.deleteMany({
+            where,
+          });
+
+          results.push({
+            itemId,
+            success: true,
+            changes: {
+              candidatesRemoved: {
+                from: 0,
+                to: deletedCount.count,
+              },
+            },
+          });
+        }
+
+        return results;
+      } else {
+        // Global cleanup
+        const deletedCount = await this.artworkService.cleanupArtworkCandidates(
+          options.olderThanDays,
+          options.keepApplied
+        );
+
+        return [{
+          itemId: 'global',
+          success: true,
+          changes: {
+            totalCandidatesRemoved: {
+              from: 0,
+              to: deletedCount,
+            },
+          },
+        }];
+      }
+    } catch (error) {
+      this.logger.error(
+        `Bulk artwork cleanup failed: ${(error as Error).message}`
+      );
+
+      const fallbackResults = itemIds || ['global'];
+      return fallbackResults.map((itemId) => ({
         itemId,
         success: false,
         error: (error as Error).message,

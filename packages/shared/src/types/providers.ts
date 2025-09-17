@@ -58,6 +58,15 @@ export interface ProviderArtwork {
   height?: number;
   language?: string;
   rating?: number;
+  confidence?: number;
+}
+
+export interface ProviderArtworkSearchOptions {
+  query?: string;
+  id?: string;
+  types?: string[];
+  language?: string;
+  year?: number;
 }
 
 export enum ProviderType {
