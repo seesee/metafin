@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Body, Query, Param } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Query, Param } from '@nestjs/common';
 import { LibrarySyncService, SyncProgress } from './library-sync.service.js';
 import { DatabaseService } from '../database/database.service.js';
+import { JellyfinService } from '../jellyfin/jellyfin.service.js';
 
 export interface StartSyncRequest {
   fullSync?: boolean;
@@ -18,11 +19,23 @@ export interface LibraryItemsQuery {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface UpdateLibraryItemRequest {
+  name?: string;
+  overview?: string;
+  year?: number;
+  genres?: string[];
+  tags?: string[];
+  studios?: string[];
+  premiereDate?: string;
+  endDate?: string;
+}
+
 @Controller('api/library')
 export class LibraryController {
   constructor(
     private readonly librarySyncService: LibrarySyncService,
-    private readonly databaseService: DatabaseService
+    private readonly databaseService: DatabaseService,
+    private readonly jellyfinService: JellyfinService
   ) {}
 
   @Post('sync')
@@ -158,5 +171,69 @@ export class LibraryController {
       itemCount: lib._count.items,
       lastSyncAt: lib.lastSyncAt,
     }));
+  }
+
+  @Put('items/:id')
+  async updateLibraryItem(
+    @Param('id') id: string,
+    @Body() updateData: UpdateLibraryItemRequest
+  ) {
+    // First get the current item to check if it exists and get jellyfinId
+    const currentItem = await this.databaseService.item.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        jellyfinId: true,
+      },
+    });
+
+    if (!currentItem) {
+      throw new Error('Item not found');
+    }
+
+    // Update the item in the database
+    const updatedItem = await this.databaseService.item.update({
+      where: { id },
+      data: {
+        name: updateData.name,
+        overview: updateData.overview,
+        year: updateData.year,
+        genres: updateData.genres
+          ? JSON.stringify(updateData.genres)
+          : undefined,
+        tags: updateData.tags ? JSON.stringify(updateData.tags) : undefined,
+        studios: updateData.studios
+          ? JSON.stringify(updateData.studios)
+          : undefined,
+        premiereDate: updateData.premiereDate
+          ? new Date(updateData.premiereDate)
+          : undefined,
+        endDate: updateData.endDate ? new Date(updateData.endDate) : undefined,
+        lastSyncAt: new Date(),
+      },
+      include: {
+        library: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Try to update Jellyfin item (non-blocking)
+    try {
+      await this.jellyfinService.updateItemMetadata(
+        currentItem.jellyfinId,
+        updateData
+      );
+    } catch (error) {
+      // Log the error but don't fail the request
+      console.warn(
+        `Failed to update Jellyfin item ${currentItem.jellyfinId}:`,
+        (error as Error).message
+      );
+    }
+
+    return updatedItem;
   }
 }
