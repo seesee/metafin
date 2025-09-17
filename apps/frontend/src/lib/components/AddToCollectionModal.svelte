@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { apiClient, ApiError } from '$lib/api/client.js';
   import LoadingSpinner from './LoadingSpinner.svelte';
 
@@ -102,10 +102,11 @@
 
 {#if isOpen}
   <!-- Modal backdrop -->
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
   <div
     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
     on:click={handleClose}
-    on:keydown={handleKeydown}
     role="presentation"
   >
     <!-- Modal content -->

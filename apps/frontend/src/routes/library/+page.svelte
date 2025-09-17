@@ -21,7 +21,6 @@
   }
 
   let items: LibraryItem[] = [];
-  let filteredItems: LibraryItem[] = [];
   let loading = true;
   let error: string | null = null;
   let searchQuery = '';

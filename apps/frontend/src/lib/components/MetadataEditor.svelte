@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { ApiError } from '$lib/api/client.js';
+  import { apiClient, ApiError } from '$lib/api/client.js';
   import LoadingSpinner from './LoadingSpinner.svelte';
 
   interface LibraryItem {
@@ -11,7 +11,9 @@
     year?: number;
     overview?: string;
     parentName?: string;
-    libraryName: string;
+    library: {
+      name: string;
+    };
     hasArtwork: boolean;
     lastSyncAt: string;
     genres?: string[];
@@ -41,8 +43,6 @@
     studios: [...(item.studios || [])],
     premiereDate: item.premiereDate || '',
     endDate: item.endDate || '',
-    officialRating: item.officialRating || '',
-    communityRating: item.communityRating || undefined,
   };
 
   let saving = false;
@@ -58,15 +58,16 @@
     error = null;
 
     try {
-      // TODO: Replace with actual API call
-      // const updatedItem = await apiClient.put(`library/items/${item.id}`, formData);
-
-      // Mock successful save
-      const updatedItem = {
-        ...item,
-        ...formData,
-        lastSyncAt: new Date().toISOString(),
-      };
+      const updatedItem = await apiClient.put<LibraryItem>(`library/items/${item.id}`, {
+        name: formData.name,
+        overview: formData.overview || undefined,
+        year: formData.year || undefined,
+        genres: formData.genres,
+        tags: formData.tags,
+        studios: formData.studios,
+        premiereDate: formData.premiereDate || undefined,
+        endDate: formData.endDate || undefined,
+      });
 
       dispatch('save', updatedItem);
     } catch (err) {
@@ -216,8 +217,8 @@
       ></textarea>
     </div>
 
-    <!-- Dates and Rating -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Dates -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label for="premiereDate" class="block text-sm font-medium mb-2"
           >Premiere Date</label
@@ -238,44 +239,6 @@
           id="endDate"
           type="date"
           bind:value={formData.endDate}
-          class="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-        />
-      </div>
-
-      <div>
-        <label for="officialRating" class="block text-sm font-medium mb-2"
-          >Rating</label
-        >
-        <select
-          id="officialRating"
-          bind:value={formData.officialRating}
-          class="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-        >
-          <option value="">Not Rated</option>
-          <option value="G">G</option>
-          <option value="PG">PG</option>
-          <option value="PG-13">PG-13</option>
-          <option value="R">R</option>
-          <option value="NC-17">NC-17</option>
-          <option value="TV-G">TV-G</option>
-          <option value="TV-PG">TV-PG</option>
-          <option value="TV-14">TV-14</option>
-          <option value="TV-MA">TV-MA</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="communityRating" class="block text-sm font-medium mb-2"
-          >User Rating</label
-        >
-        <input
-          id="communityRating"
-          type="number"
-          bind:value={formData.communityRating}
-          min="0"
-          max="10"
-          step="0.1"
-          placeholder="0.0 - 10.0"
           class="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
