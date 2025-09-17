@@ -10,6 +10,18 @@
     configuration: {
       hasJellyfinConfig: boolean;
       hasTmdbConfig: boolean;
+      defaultLocale: string;
+    };
+    endpoints: {
+      jellyfin: {
+        url: string | null;
+        apiKeyConfigured: boolean;
+        apiKeyPreview: string | null;
+      };
+      backend: {
+        port: number;
+        basePath: string;
+      };
     };
   }
 
@@ -25,6 +37,7 @@
   let healthData: {
     metafin: { status: string; info: MetafinInfo };
     database: { status: string; info: DatabaseInfo };
+    jellyfin?: { status: string; info?: { version?: string; error?: string } };
   } | null = null;
   let helloData: { message: string; timestamp: string } | null = null;
   let loading = true;
@@ -213,6 +226,83 @@
                     ? 'Configured'
                     : 'Optional'}
                 </div>
+                <p>
+                  Locale: {healthData.metafin.info.configuration.defaultLocale}
+                </p>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Endpoint Information -->
+          {#if healthData.metafin?.info?.endpoints}
+            <div>
+              <p class="font-medium">Endpoints</p>
+              <div class="text-sm text-muted-foreground space-y-1">
+                <div>
+                  <p class="font-medium text-xs text-muted-foreground/80">
+                    Backend
+                  </p>
+                  <p>Port: {healthData.metafin.info.endpoints.backend.port}</p>
+                  <p>
+                    Base Path: {healthData.metafin.info.endpoints.backend
+                      .basePath}
+                  </p>
+                </div>
+                {#if healthData.metafin.info.endpoints.jellyfin.url}
+                  <div>
+                    <p class="font-medium text-xs text-muted-foreground/80">
+                      Jellyfin
+                    </p>
+                    <p>URL: {healthData.metafin.info.endpoints.jellyfin.url}</p>
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="w-2 h-2 rounded-full {healthData.metafin.info
+                          .endpoints.jellyfin.apiKeyConfigured
+                          ? 'bg-green-500'
+                          : 'bg-red-500'}"
+                      ></span>
+                      API Key: {healthData.metafin.info.endpoints.jellyfin
+                        .apiKeyConfigured
+                        ? healthData.metafin.info.endpoints.jellyfin
+                            .apiKeyPreview
+                        : 'Not configured'}
+                    </div>
+                  </div>
+                {:else}
+                  <div>
+                    <p class="font-medium text-xs text-muted-foreground/80">
+                      Jellyfin
+                    </p>
+                    <p class="text-yellow-600">Not configured</p>
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {/if}
+
+          <!-- Jellyfin Connection Status -->
+          {#if healthData.jellyfin}
+            <div>
+              <p class="font-medium flex items-center gap-2">
+                Jellyfin Connection
+                <span
+                  class="w-2 h-2 rounded-full {healthData.jellyfin.status ===
+                  'up'
+                    ? 'bg-green-500'
+                    : 'bg-red-500'}"
+                ></span>
+              </p>
+              <div class="text-sm text-muted-foreground">
+                {#if healthData.jellyfin.status === 'up'}
+                  <p class="text-green-600">Connected successfully</p>
+                  {#if healthData.jellyfin.info?.version}
+                    <p>Version: {healthData.jellyfin.info.version}</p>
+                  {/if}
+                {:else}
+                  <p class="text-red-600">
+                    {healthData.jellyfin.info?.error || 'Connection failed'}
+                  </p>
+                {/if}
               </div>
             </div>
           {/if}

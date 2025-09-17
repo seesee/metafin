@@ -54,6 +54,25 @@ export class HealthController {
             hasTmdbConfig: this.configService.hasTmdbConfig,
             defaultLocale: this.configService.defaultLocale,
           },
+          endpoints: {
+            jellyfin: {
+              url: this.configService.hasJellyfinConfig
+                ? this.configService.jellyfinUrl
+                : null,
+              apiKeyConfigured:
+                this.configService.hasJellyfinConfig &&
+                !!this.configService.jellyfinApiKey,
+              apiKeyPreview:
+                this.configService.hasJellyfinConfig &&
+                this.configService.jellyfinApiKey
+                  ? `${this.configService.jellyfinApiKey.substring(0, 8)}...${this.configService.jellyfinApiKey.slice(-4)}`
+                  : null,
+            },
+            backend: {
+              port: process.env.APP_PORT || 3000,
+              basePath: this.configService.basePath,
+            },
+          },
         },
       },
     };

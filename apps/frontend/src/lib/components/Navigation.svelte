@@ -35,6 +35,12 @@
       description: 'Manage custom and smart collections',
     },
     {
+      label: 'Review Queue',
+      href: '/review-queue',
+      icon: '🔍',
+      description: 'Review flagged items and misclassifications',
+    },
+    {
       label: 'Jobs',
       href: '/jobs',
       icon: '⚙️',

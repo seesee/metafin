@@ -65,7 +65,6 @@ export class ReviewQueueService {
     };
   }> {
     const {
-      _status = 'pending',
       priority,
       libraryId,
       limit = 50,
@@ -136,10 +135,10 @@ export class ReviewQueueService {
       library: item.library,
       path: item.path || undefined,
       misclassificationScore: item.misclassificationScore ?? undefined,
-      misclassificationReasons: item.misclassificationReasons,
+      misclassificationReasons: item.misclassificationReasons || undefined,
       priority: this.calculatePriority(item.misclassificationScore || 0),
       addedAt: item.createdAt.toISOString(),
-      status: 'pending', // For now, all items are pending
+      status: 'pending' as const, // For now, all items are pending
     }));
 
     return {

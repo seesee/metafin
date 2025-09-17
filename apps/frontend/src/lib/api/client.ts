@@ -80,6 +80,7 @@ export class ApiClient {
   async getHealth(): Promise<{
     metafin: { status: string; info: unknown };
     database: { status: string; info: unknown };
+    jellyfin?: { status: string; info?: unknown };
   }> {
     return this.get('health');
   }
@@ -176,6 +177,219 @@ export class ApiClient {
       ? `library/items?${query}`
       : 'library/items';
     return this.get(endpoint);
+  }
+
+  // Review Queue endpoints
+  async getReviewQueue(params?: {
+    status?: 'pending' | 'reviewed' | 'dismissed';
+    priority?: 'low' | 'medium' | 'high';
+    library?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: 'score' | 'addedAt' | 'priority';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<{
+    items: Array<{
+      id: string;
+      jellyfinId: string;
+      name: string;
+      type: string;
+      library: { name: string };
+      path?: string;
+      misclassificationScore?: number;
+      misclassificationReasons?: string;
+      priority: 'low' | 'medium' | 'high';
+      addedAt: string;
+      reviewedAt?: string;
+      reviewedBy?: string;
+      status: 'pending' | 'reviewed' | 'dismissed';
+    }>;
+    pagination: {
+      limit: number;
+      offset: number;
+      total: number;
+      hasMore: boolean;
+    };
+  }> {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          query.set(key, String(value));
+        }
+      });
+    }
+
+    const endpoint = query.toString()
+      ? `review-queue?${query}`
+      : 'review-queue';
+    return this.get(endpoint);
+  }
+
+  async getReviewQueueStats(libraryId?: string): Promise<{
+    totalItems: number;
+    pendingItems: number;
+    highPriorityItems: number;
+    mediumPriorityItems: number;
+    lowPriorityItems: number;
+    averageScore: number;
+    oldestItemAge: number;
+  }> {
+    const query = libraryId ? `?library=${libraryId}` : '';
+    return this.get(`review-queue/stats${query}`);
+  }
+
+  async reviewItem(
+    itemId: string,
+    action: {
+      action:
+        | 'dismiss'
+        | 'correct_type'
+        | 'update_metadata'
+        | 'flag_for_manual';
+      newType?: string;
+      metadata?: Record<string, unknown>;
+      notes?: string;
+    },
+    reviewedBy?: string
+  ): Promise<{ success: boolean; message: string }> {
+    return this.post(`review-queue/${itemId}/review`, {
+      ...action,
+      reviewedBy,
+    });
+  }
+
+  async bulkReviewItems(
+    itemIds: string[],
+    action: {
+      action:
+        | 'dismiss'
+        | 'correct_type'
+        | 'update_metadata'
+        | 'flag_for_manual';
+      newType?: string;
+      metadata?: Record<string, unknown>;
+      notes?: string;
+    },
+    reviewedBy?: string
+  ): Promise<{
+    successful: number;
+    failed: number;
+    errors: Array<{ itemId: string; error: string }>;
+  }> {
+    return this.post('review-queue/bulk-review', {
+      itemIds,
+      action,
+      reviewedBy,
+    });
+  }
+
+  async clearReviewQueue(libraryId?: string): Promise<{
+    success: boolean;
+    message: string;
+    itemsCleared: number;
+  }> {
+    const query = libraryId ? `?library=${libraryId}` : '';
+    return this.delete(`review-queue/clear${query}`);
+  }
+
+  async getItemHistory(itemId: string): Promise<
+    Array<{
+      timestamp: string;
+      operation: string;
+      details: unknown;
+      success: boolean;
+    }>
+  > {
+    return this.get(`review-queue/${itemId}/history`);
+  }
+
+  // Misclassification endpoints
+  async getMisclassifiedItems(params?: {
+    library?: string;
+    severity?: 'low' | 'medium' | 'high';
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    items: Array<{
+      id: string;
+      jellyfinId: string;
+      name: string;
+      type: string;
+      library: string;
+      path?: string;
+      misclassificationScore?: number;
+      reasons: Array<{
+        type: string;
+        description: string;
+        severity: 'low' | 'medium' | 'high';
+        confidence: number;
+      }>;
+    }>;
+    pagination: {
+      limit: number;
+      offset: number;
+      hasMore: boolean;
+    };
+  }> {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          query.set(key, String(value));
+        }
+      });
+    }
+
+    const endpoint = query.toString()
+      ? `misclassifications?${query}`
+      : 'misclassifications';
+    return this.get(endpoint);
+  }
+
+  async analyzeItem(itemId: string): Promise<{
+    itemId: string;
+    currentType: string;
+    suggestedType?: string;
+    score: number;
+    reasons: Array<{
+      type: string;
+      description: string;
+      severity: 'low' | 'medium' | 'high';
+      confidence: number;
+    }>;
+    needsReview: boolean;
+  }> {
+    return this.get(`misclassifications/${itemId}/analysis`);
+  }
+
+  async scanLibraryForMisclassifications(
+    libraryId?: string,
+    itemTypes?: string[]
+  ): Promise<{
+    totalItems: number;
+    itemsScanned: number;
+    misclassifiedItems: number;
+    highConfidenceIssues: number;
+    mediumConfidenceIssues: number;
+    lowConfidenceIssues: number;
+    duration: number;
+  }> {
+    const query = new URLSearchParams();
+    if (libraryId) query.set('library', libraryId);
+    if (itemTypes) query.set('types', itemTypes.join(','));
+
+    const endpoint = query.toString()
+      ? `misclassifications/scan?${query}`
+      : 'misclassifications/scan';
+    return this.post(endpoint);
+  }
+
+  async dismissMisclassification(itemId: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    return this.delete(`misclassifications/${itemId}`);
   }
 }
 
