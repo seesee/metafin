@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import AddToCollectionModal from './AddToCollectionModal.svelte';
 
   interface LibraryItem {
     id: string;
@@ -9,12 +10,18 @@
     year?: number;
     overview?: string;
     parentName?: string;
-    libraryName: string;
+    library: {
+      name: string;
+    };
     hasArtwork: boolean;
     lastSyncAt: string;
   }
 
   export let items: LibraryItem[];
+
+  let showAddToCollectionModal = false;
+  let selectedItem: LibraryItem | null = null;
+  let successMessage = '';
 
   function getTypeIcon(type: string): string {
     switch (type) {
@@ -56,7 +63,32 @@
       handleItemClick(item);
     }
   }
+
+  function openAddToCollectionModal(item: LibraryItem, event: Event) {
+    event.stopPropagation();
+    selectedItem = item;
+    showAddToCollectionModal = true;
+  }
+
+  function handleAddToCollectionSuccess(event: CustomEvent<{ collectionName: string }>) {
+    successMessage = `Added "${selectedItem?.name}" to "${event.detail.collectionName}"`;
+    setTimeout(() => {
+      successMessage = '';
+    }, 5000);
+  }
+
+  function closeAddToCollectionModal() {
+    showAddToCollectionModal = false;
+    selectedItem = null;
+  }
 </script>
+
+<!-- Success Message -->
+{#if successMessage}
+  <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400">
+    {successMessage}
+  </div>
+{/if}
 
 <div
   class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4"
@@ -98,6 +130,27 @@
           >
             {item.name}
           </h3>
+          <button
+            type="button"
+            class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
+            on:click={(e) => openAddToCollectionModal(item, e)}
+            title="Add to collection"
+            aria-label="Add {item.name} to collection"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+          </button>
         </div>
 
         <!-- Type and Year -->
@@ -119,7 +172,7 @@
 
         <!-- Library -->
         <div class="text-xs text-muted-foreground">
-          📚 {item.libraryName}
+          📚 {item.library.name}
         </div>
 
         <!-- Overview -->
@@ -137,6 +190,17 @@
     </div>
   {/each}
 </div>
+
+<!-- Add to Collection Modal -->
+{#if selectedItem}
+  <AddToCollectionModal
+    itemId={selectedItem.id}
+    itemName={selectedItem.name}
+    isOpen={showAddToCollectionModal}
+    on:close={closeAddToCollectionModal}
+    on:success={handleAddToCollectionSuccess}
+  />
+{/if}
 
 <style>
   .line-clamp-2 {

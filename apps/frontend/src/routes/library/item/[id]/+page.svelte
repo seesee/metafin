@@ -6,6 +6,7 @@
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import MetadataEditor from '$lib/components/MetadataEditor.svelte';
   import ArtworkGallery from '$lib/components/ArtworkGallery.svelte';
+  import AddToCollectionModal from '$lib/components/AddToCollectionModal.svelte';
 
   interface LibraryItem {
     id: string;
@@ -45,6 +46,8 @@
   let editing = false;
   let providerMatches: ProviderMatch[] = [];
   let loadingMatches = false;
+  let showAddToCollectionModal = false;
+  let successMessage = '';
 
   $: itemId = $page.params.id;
 
@@ -145,6 +148,21 @@
     if (!rating) return 'Not rated';
     return `${rating}/10`;
   }
+
+  function openAddToCollectionModal() {
+    showAddToCollectionModal = true;
+  }
+
+  function closeAddToCollectionModal() {
+    showAddToCollectionModal = false;
+  }
+
+  function handleAddToCollectionSuccess(event: CustomEvent<{ collectionName: string }>) {
+    successMessage = `Added "${item?.name}" to "${event.detail.collectionName}"`;
+    setTimeout(() => {
+      successMessage = '';
+    }, 5000);
+  }
 </script>
 
 <svelte:head>
@@ -152,6 +170,13 @@
 </svelte:head>
 
 <div class="container mx-auto px-6 py-8 max-w-6xl">
+  <!-- Success Message -->
+  {#if successMessage}
+    <div class="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400">
+      {successMessage}
+    </div>
+  {/if}
+
   <!-- Header -->
   <div class="flex items-center gap-4 mb-6">
     <button
@@ -214,6 +239,13 @@
                       on:click={() => (editing = true)}
                     >
                       Edit Metadata
+                    </button>
+                    <button
+                      type="button"
+                      class="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
+                      on:click={openAddToCollectionModal}
+                    >
+                      Add to Collection
                     </button>
                   {/if}
                 </div>
@@ -417,3 +449,14 @@
     </div>
   {/if}
 </div>
+
+<!-- Add to Collection Modal -->
+{#if item}
+  <AddToCollectionModal
+    itemId={item.id}
+    itemName={item.name}
+    isOpen={showAddToCollectionModal}
+    on:close={closeAddToCollectionModal}
+    on:success={handleAddToCollectionSuccess}
+  />
+{/if}

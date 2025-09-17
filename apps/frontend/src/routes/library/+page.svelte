@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ApiError } from '$lib/api/client.js';
+  import { apiClient, ApiError } from '$lib/api/client.js';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import LibraryGrid from '$lib/components/LibraryGrid.svelte';
   import SearchBar from '$lib/components/SearchBar.svelte';
@@ -13,7 +13,9 @@
     year?: number;
     overview?: string;
     parentName?: string;
-    libraryName: string;
+    library: {
+      name: string;
+    };
     hasArtwork: boolean;
     lastSyncAt: string;
   }
@@ -27,15 +29,11 @@
   let selectedLibrary = 'all';
   let libraries: string[] = [];
 
-  // Pagination
+  // Pagination - now handled by API
   let currentPage = 1;
   let itemsPerPage = 24;
-
-  $: totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-  $: paginatedItems = filteredItems.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  let totalPages = 1;
+  let totalItems = 0;
 
   onMount(async () => {
     await loadLibraryItems();
@@ -46,53 +44,42 @@
     error = null;
 
     try {
-      // TODO: Replace with actual API endpoint
-      // const response = await apiClient.get<{ items: LibraryItem[], total: number }>('library/items');
-      // items = response.items;
-      // totalItems = response.total;
+      const params: { [key: string]: string | number } = {
+        page: currentPage,
+        limit: itemsPerPage,
+      };
 
-      // Mock data for now
-      items = [
-        {
-          id: '1',
-          jellyfinId: 'jf-1',
-          name: 'Breaking Bad',
-          type: 'Series',
-          year: 2008,
-          overview:
-            'A high school chemistry teacher turned methamphetamine producer.',
-          libraryName: 'TV Shows',
-          hasArtwork: true,
-          lastSyncAt: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          jellyfinId: 'jf-2',
-          name: 'The Wire',
-          type: 'Series',
-          year: 2002,
-          overview: 'A crime drama focusing on the Baltimore drug scene.',
-          libraryName: 'TV Shows',
-          hasArtwork: false,
-          lastSyncAt: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          jellyfinId: 'jf-3',
-          name: 'The Godfather',
-          type: 'Movie',
-          year: 1972,
-          overview: 'The aging patriarch of an organized crime dynasty.',
-          libraryName: 'Movies',
-          hasArtwork: true,
-          lastSyncAt: new Date().toISOString(),
-        },
-      ];
+      if (searchQuery.trim()) {
+        params.search = searchQuery.trim();
+      }
 
-      // Extract unique libraries
-      libraries = [...new Set(items.map((item) => item.libraryName))];
+      if (selectedType !== 'all') {
+        params.type = selectedType;
+      }
 
-      filterItems();
+      if (selectedLibrary !== 'all') {
+        params.library = selectedLibrary;
+      }
+
+      const response = await apiClient.get<{
+        items: LibraryItem[];
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
+          totalPages: number;
+        };
+      }>(`library/items?${new URLSearchParams(params as Record<string, string>)}`);
+
+      items = response.items;
+      currentPage = response.pagination.page;
+      totalPages = response.pagination.totalPages;
+      totalItems = response.pagination.total;
+
+      // Load libraries if not already loaded
+      if (libraries.length === 0) {
+        await loadLibraries();
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         error = `${err.code}: ${err.message}`;
@@ -104,44 +91,45 @@
     }
   }
 
-  function filterItems() {
-    filteredItems = items.filter((item) => {
-      const matchesSearch =
-        searchQuery === '' ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.overview &&
-          item.overview.toLowerCase().includes(searchQuery.toLowerCase()));
+  async function loadLibraries() {
+    try {
+      const librariesResponse = await apiClient.get<Array<{
+        id: string;
+        name: string;
+        type: string;
+        itemCount: number;
+        lastSyncAt: string;
+      }>>('library/libraries');
 
-      const matchesType = selectedType === 'all' || item.type === selectedType;
-      const matchesLibrary =
-        selectedLibrary === 'all' || item.libraryName === selectedLibrary;
-
-      return matchesSearch && matchesType && matchesLibrary;
-    });
-
-    // Reset to first page when filters change
-    currentPage = 1;
+      libraries = librariesResponse.map((lib) => lib.name);
+    } catch (err) {
+      console.error('Failed to load libraries:', err);
+    }
   }
 
-  function handleSearch(query: string) {
-    searchQuery = query;
-    filterItems();
+  function handleSearch(event: CustomEvent<string>) {
+    searchQuery = event.detail;
+    currentPage = 1;
+    loadLibraryItems();
   }
 
   function handleTypeChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     selectedType = target.value;
-    filterItems();
+    currentPage = 1;
+    loadLibraryItems();
   }
 
   function handleLibraryChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     selectedLibrary = target.value;
-    filterItems();
+    currentPage = 1;
+    loadLibraryItems();
   }
 
   function goToPage(page: number) {
     currentPage = Math.max(1, Math.min(page, totalPages));
+    loadLibraryItems();
   }
 </script>
 
@@ -174,7 +162,7 @@
   <div class="mb-6 space-y-4">
     <SearchBar
       placeholder="Search by title or description..."
-      on:search={(e) => handleSearch(e.detail)}
+      on:search={handleSearch}
     />
 
     <div class="flex gap-4 flex-wrap">
@@ -213,9 +201,9 @@
 
       <!-- Results Count -->
       <div class="flex items-center text-sm text-muted-foreground ml-auto">
-        Showing {paginatedItems.length} of {filteredItems.length} items
-        {#if filteredItems.length !== items.length}
-          (filtered from {items.length} total)
+        Showing {items.length} of {totalItems} items
+        {#if currentPage > 1}
+          (page {currentPage} of {totalPages})
         {/if}
       </div>
     </div>
@@ -240,7 +228,7 @@
         Try Again
       </button>
     </div>
-  {:else if filteredItems.length === 0}
+  {:else if items.length === 0}
     <div class="text-center py-12 text-muted-foreground">
       {#if searchQuery || selectedType !== 'all' || selectedLibrary !== 'all'}
         <h3 class="text-lg font-semibold mb-2">No items match your filters</h3>
@@ -252,7 +240,8 @@
             searchQuery = '';
             selectedType = 'all';
             selectedLibrary = 'all';
-            filterItems();
+            currentPage = 1;
+            loadLibraryItems();
           }}
         >
           Clear Filters
@@ -265,7 +254,7 @@
       {/if}
     </div>
   {:else}
-    <LibraryGrid items={paginatedItems} />
+    <LibraryGrid items={items} />
 
     <!-- Pagination -->
     {#if totalPages > 1}
