@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  import { ApiError } from '$lib/api/client.js';
+  import { createEventDispatcher, onMount } from 'svelte';
+  import { apiClient, ApiError } from '$lib/api/client.js';
   import LoadingSpinner from './LoadingSpinner.svelte';
 
   export let itemId: string;
@@ -12,12 +12,15 @@
 
   interface ArtworkCandidate {
     id: string;
+    itemId: string;
     type: string;
     url: string;
     width?: number;
     height?: number;
-    source: string;
+    provider: string;
     confidence: number;
+    isApplied: boolean;
+    createdAt: string;
   }
 
   let artworkCandidates: ArtworkCandidate[] = [];
@@ -37,44 +40,45 @@
     { value: 'Banner', label: 'Banner' },
   ];
 
+  onMount(() => {
+    loadExistingArtworkCandidates();
+  });
+
+  async function loadExistingArtworkCandidates() {
+    loading = true;
+    error = null;
+
+    try {
+      artworkCandidates = await apiClient.get<ArtworkCandidate[]>(
+        `library/items/${itemId}/artwork`
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        error = `${err.code}: ${err.message}`;
+      } else {
+        error = 'Failed to load artwork candidates';
+      }
+    } finally {
+      loading = false;
+    }
+  }
+
   async function searchArtworkCandidates() {
     searching = true;
     error = null;
 
     try {
-      // TODO: Replace with actual API call
-      // artworkCandidates = await apiClient.get(`library/items/${itemId}/artwork-candidates`);
+      const searchResult = await apiClient.post(
+        `library/items/${itemId}/artwork/search`,
+        {
+          language: 'en',
+        }
+      );
 
-      // Mock data
-      artworkCandidates = [
-        {
-          id: '1',
-          type: 'Primary',
-          url: 'https://via.placeholder.com/400x600/4338ca/ffffff?text=Poster+1',
-          width: 400,
-          height: 600,
-          source: 'TVMaze',
-          confidence: 0.95,
-        },
-        {
-          id: '2',
-          type: 'Primary',
-          url: 'https://via.placeholder.com/400x600/7c3aed/ffffff?text=Poster+2',
-          width: 400,
-          height: 600,
-          source: 'TMDb',
-          confidence: 0.88,
-        },
-        {
-          id: '3',
-          type: 'Backdrop',
-          url: 'https://via.placeholder.com/800x450/dc2626/ffffff?text=Backdrop+1',
-          width: 800,
-          height: 450,
-          source: 'TVMaze',
-          confidence: 0.92,
-        },
-      ];
+      // Reload the artwork candidates to get the updated list including new search results
+      await loadExistingArtworkCandidates();
+
+      console.log(`Search completed: ${searchResult.message}`);
     } catch (err) {
       if (err instanceof ApiError) {
         error = `${err.code}: ${err.message}`;
@@ -86,24 +90,23 @@
     }
   }
 
-  async function applyArtwork(_candidate: ArtworkCandidate) {
+  async function applyArtwork(candidate: ArtworkCandidate) {
     loading = true;
     error = null;
 
     try {
-      // TODO: Replace with actual API call
-      // await apiClient.post(`library/items/${itemId}/artwork`, {
-      //   type: candidate.type,
-      //   url: candidate.url
-      // });
+      await apiClient.post(`library/items/${itemId}/artwork/apply`, {
+        candidateId: candidate.id,
+        type: candidate.type,
+      });
 
-      // Mock successful application
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
+      // Mark this candidate as applied and reload the list
+      candidate.isApplied = true;
       hasArtwork = true;
       dispatch('artworkUpdated', { itemId, hasArtwork: true });
 
-      // Show success message or update UI
+      // Reload the artwork candidates to get updated state
+      await loadExistingArtworkCandidates();
     } catch (err) {
       if (err instanceof ApiError) {
         error = `${err.code}: ${err.message}`;
@@ -123,21 +126,20 @@
 
     try {
       const formData = new FormData();
-      formData.append('artwork', selectedFile);
+      formData.append('file', selectedFile);
       formData.append('type', 'Primary');
 
-      // TODO: Replace with actual API call
-      // await apiClient.post(`library/items/${itemId}/artwork/upload`, formData, {
-      //   headers: { 'Content-Type': 'multipart/form-data' }
-      // });
-
-      // Mock successful upload
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await apiClient.post(`library/items/${itemId}/artwork/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
       hasArtwork = true;
       selectedFile = null;
       fileInput.value = '';
       dispatch('artworkUpdated', { itemId, hasArtwork: true });
+
+      // Reload the artwork candidates to show the uploaded artwork
+      await loadExistingArtworkCandidates();
     } catch (err) {
       if (err instanceof ApiError) {
         error = `${err.code}: ${err.message}`;
@@ -283,8 +285,11 @@
                     </span>
                   </div>
                   <div class="text-xs text-muted-foreground space-y-1">
-                    <div>Source: {candidate.source}</div>
+                    <div>Provider: {candidate.provider}</div>
                     <div>{getDimensionsText(candidate)}</div>
+                    {#if candidate.isApplied}
+                      <div class="text-green-600">✓ Applied</div>
+                    {/if}
                   </div>
                   <button
                     type="button"

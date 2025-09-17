@@ -15,7 +15,9 @@
     year?: number;
     overview?: string;
     parentName?: string;
-    libraryName: string;
+    library: {
+      name: string;
+    };
     hasArtwork: boolean;
     lastSyncAt: string;
     genres?: string[];
@@ -57,39 +59,7 @@
     error = null;
 
     try {
-      // TODO: Replace with actual API call
-      // item = await apiClient.get<LibraryItem>(`library/items/${itemId}`);
-
-      // Mock data for now
-      item = {
-        id: itemId,
-        jellyfinId: `jf-${itemId}`,
-        name: 'Breaking Bad',
-        type: 'Series',
-        year: 2008,
-        overview:
-          "A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling methamphetamine in order to secure his family's future.",
-        libraryName: 'TV Shows',
-        hasArtwork: true,
-        lastSyncAt: new Date().toISOString(),
-        genres: ['Crime', 'Drama', 'Thriller'],
-        tags: ['Award Winner', 'Dark', 'Mature'],
-        studios: ['Sony Pictures Television', 'High Bridge Entertainment'],
-        providerIds: {
-          tvdb: '81189',
-          tmdb: '1396',
-          imdb: 'tt0903747',
-        },
-        premiereDate: '2008-01-20',
-        endDate: '2013-09-29',
-        officialRating: 'TV-MA',
-        communityRating: 9.5,
-        people: [
-          { name: 'Bryan Cranston', role: 'Walter White', type: 'Actor' },
-          { name: 'Aaron Paul', role: 'Jesse Pinkman', type: 'Actor' },
-          { name: 'Vince Gilligan', type: 'Creator' },
-        ],
-      };
+      item = await apiClient.get<LibraryItem>(`library/items/${itemId}`);
     } catch (err) {
       if (err instanceof ApiError) {
         error = `${err.code}: ${err.message}`;
@@ -141,6 +111,14 @@
 
   function handleEditCancel() {
     editing = false;
+  }
+
+  function handleArtworkUpdate(
+    event: CustomEvent<{ itemId: string; hasArtwork: boolean }>
+  ) {
+    if (item && event.detail.itemId === item.id) {
+      item.hasArtwork = event.detail.hasArtwork;
+    }
   }
 
   function getTypeIcon(type: string): string {
@@ -313,7 +291,7 @@
 
                 <div>
                   <h4 class="font-medium mb-1">Library</h4>
-                  <p class="text-muted-foreground">{item.libraryName}</p>
+                  <p class="text-muted-foreground">{item.library.name}</p>
                 </div>
 
                 <div>
@@ -368,7 +346,7 @@
         {#if editing}
           <MetadataEditor
             {item}
-            on:save={({ detail }) => handleMetadataUpdate(detail)}
+            on:save={handleMetadataUpdate}
             on:cancel={handleEditCancel}
           />
         {/if}
@@ -376,8 +354,12 @@
 
       <!-- Sidebar -->
       <div class="space-y-6">
-        <!-- Artwork -->
-        <ArtworkGallery itemId={item.id} hasArtwork={item.hasArtwork} />
+        <!-- Artwork Gallery -->
+        <ArtworkGallery
+          itemId={item.id}
+          hasArtwork={item.hasArtwork}
+          on:artworkUpdated={handleArtworkUpdate}
+        />
 
         <!-- Provider Matches -->
         <div class="bg-card border border-border rounded-lg p-6">

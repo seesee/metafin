@@ -1,4 +1,15 @@
-import { Controller, Post, Get, Put, Body, Query, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Body,
+  Query,
+  Param,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { LibrarySyncService, SyncProgress } from './library-sync.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { JellyfinService } from '../jellyfin/jellyfin.service.js';
@@ -28,6 +39,17 @@ export interface UpdateLibraryItemRequest {
   studios?: string[];
   premiereDate?: string;
   endDate?: string;
+}
+
+export interface ApplyArtworkRequest {
+  candidateId: string;
+  type: string;
+}
+
+export interface SearchArtworkRequest {
+  query?: string;
+  year?: number;
+  language?: string;
 }
 
 @Controller('api/library')
@@ -235,5 +257,269 @@ export class LibraryController {
     }
 
     return updatedItem;
+  }
+
+  @Get('items/:id/artwork')
+  async getArtworkCandidates(@Param('id') id: string) {
+    const artwork = await this.databaseService.artworkCandidate.findMany({
+      where: { itemId: id },
+      orderBy: [
+        { isApplied: 'desc' },
+        { confidence: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    return artwork;
+  }
+
+  @Post('items/:id/artwork/apply')
+  async applyArtwork(
+    @Param('id') id: string,
+    @Body() applyData: ApplyArtworkRequest
+  ) {
+    // First, get the artwork candidate
+    const candidate = await this.databaseService.artworkCandidate.findUnique({
+      where: { id: applyData.candidateId },
+    });
+
+    if (!candidate) {
+      throw new Error('Artwork candidate not found');
+    }
+
+    if (candidate.itemId !== id) {
+      throw new Error('Artwork candidate does not belong to this item');
+    }
+
+    // Get the item to verify it exists and get jellyfinId
+    const item = await this.databaseService.item.findUnique({
+      where: { id },
+      select: { id: true, jellyfinId: true },
+    });
+
+    if (!item) {
+      throw new Error('Item not found');
+    }
+
+    try {
+      // Apply the artwork to Jellyfin
+      await this.jellyfinService.applyItemArtwork(
+        item.jellyfinId,
+        candidate.type,
+        candidate.url
+      );
+
+      // Mark this candidate as applied and unmark others of the same type
+      await this.databaseService.$transaction([
+        // Unmark all other candidates of the same type for this item
+        this.databaseService.artworkCandidate.updateMany({
+          where: {
+            itemId: id,
+            type: candidate.type,
+          },
+          data: {
+            isApplied: false,
+          },
+        }),
+        // Mark this candidate as applied
+        this.databaseService.artworkCandidate.update({
+          where: { id: applyData.candidateId },
+          data: {
+            isApplied: true,
+            appliedAt: new Date(),
+          },
+        }),
+        // Update the item's hasArtwork flag
+        this.databaseService.item.update({
+          where: { id },
+          data: {
+            hasArtwork: true,
+            lastSyncAt: new Date(),
+          },
+        }),
+      ]);
+
+      return {
+        message: 'Artwork applied successfully',
+        candidateId: applyData.candidateId,
+      };
+    } catch (error) {
+      console.error('Failed to apply artwork:', error);
+      throw new Error(`Failed to apply artwork: ${(error as Error).message}`);
+    }
+  }
+
+  @Post('items/:id/artwork/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadCustomArtwork(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() uploadData: { type: string }
+  ) {
+    if (!file) {
+      throw new Error('No file uploaded');
+    }
+
+    // Validate file type
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new Error(
+        'Invalid file type. Only JPEG, PNG, and WebP are allowed.'
+      );
+    }
+
+    // Validate file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      throw new Error('File size too large. Maximum size is 10MB.');
+    }
+
+    // Get the item to verify it exists and get jellyfinId
+    const item = await this.databaseService.item.findUnique({
+      where: { id },
+      select: { id: true, jellyfinId: true },
+    });
+
+    if (!item) {
+      throw new Error('Item not found');
+    }
+
+    try {
+      // Upload the artwork to Jellyfin
+      await this.jellyfinService.uploadItemArtwork(
+        item.jellyfinId,
+        uploadData.type || 'Primary',
+        file.buffer,
+        file.mimetype
+      );
+
+      // Update the item's hasArtwork flag
+      await this.databaseService.item.update({
+        where: { id },
+        data: {
+          hasArtwork: true,
+          lastSyncAt: new Date(),
+        },
+      });
+
+      return {
+        message: 'Custom artwork uploaded successfully',
+        type: uploadData.type || 'Primary',
+      };
+    } catch (error) {
+      console.error('Failed to upload custom artwork:', error);
+      throw new Error(`Failed to upload artwork: ${(error as Error).message}`);
+    }
+  }
+
+  @Post('items/:id/artwork/search')
+  async searchArtwork(
+    @Param('id') id: string,
+    @Body() searchData: SearchArtworkRequest
+  ) {
+    // Get the item to determine search parameters
+    const item = await this.databaseService.item.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        year: true,
+        jellyfinId: true,
+      },
+    });
+
+    if (!item) {
+      throw new Error('Item not found');
+    }
+
+    const query = searchData.query || item.name;
+    const year = searchData.year || item.year;
+    const language = searchData.language || 'en';
+
+    try {
+      // For now, create mock artwork candidates based on the search
+      // In a real implementation, this would call external providers like TVMaze, TMDb, etc.
+      const mockCandidates = [
+        {
+          type: 'Primary',
+          url: `https://via.placeholder.com/400x600/1e40af/ffffff?text=${encodeURIComponent(query)}-Poster-1`,
+          width: 400,
+          height: 600,
+          provider: 'TVMaze',
+          confidence: 0.95,
+        },
+        {
+          type: 'Primary',
+          url: `https://via.placeholder.com/400x600/7c2d12/ffffff?text=${encodeURIComponent(query)}-Poster-2`,
+          width: 400,
+          height: 600,
+          provider: 'TMDb',
+          confidence: 0.88,
+        },
+        {
+          type: 'Backdrop',
+          url: `https://via.placeholder.com/800x450/dc2626/ffffff?text=${encodeURIComponent(query)}-Backdrop`,
+          width: 800,
+          height: 450,
+          provider: 'TVMaze',
+          confidence: 0.92,
+        },
+        {
+          type: 'Logo',
+          url: `https://via.placeholder.com/300x100/059669/ffffff?text=${encodeURIComponent(query)}-Logo`,
+          width: 300,
+          height: 100,
+          provider: 'TMDb',
+          confidence: 0.85,
+        },
+      ];
+
+      // Save artwork candidates to database
+      const savedCandidates = await Promise.all(
+        mockCandidates.map(async (candidate) => {
+          // Check if this candidate already exists
+          const existing =
+            await this.databaseService.artworkCandidate.findFirst({
+              where: {
+                itemId: id,
+                url: candidate.url,
+                type: candidate.type,
+              },
+            });
+
+          if (existing) {
+            return existing;
+          }
+
+          // Create new candidate
+          return this.databaseService.artworkCandidate.create({
+            data: {
+              itemId: id,
+              type: candidate.type,
+              url: candidate.url,
+              width: candidate.width,
+              height: candidate.height,
+              provider: candidate.provider,
+              confidence: candidate.confidence,
+              isApplied: false,
+            },
+          });
+        })
+      );
+
+      return {
+        message: `Found ${savedCandidates.length} artwork candidates`,
+        candidates: savedCandidates,
+        searchQuery: query,
+        searchYear: year,
+        searchLanguage: language,
+      };
+    } catch (error) {
+      console.error('Failed to search for artwork:', error);
+      throw new Error(
+        `Failed to search for artwork: ${(error as Error).message}`
+      );
+    }
   }
 }
