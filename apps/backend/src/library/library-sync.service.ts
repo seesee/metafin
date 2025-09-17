@@ -3,6 +3,7 @@ import { ConfigService } from '../modules/config/config.service.js';
 import { LoggerService } from '../modules/logger/logger.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { JellyfinService } from '../jellyfin/jellyfin.service.js';
+import { MisclassificationService } from '../metadata/misclassification.service.js';
 import { AppError } from '@metafin/shared';
 import { ItemType } from '@metafin/shared';
 import type { JellyfinLibrary, JellyfinItem } from '@metafin/shared';
@@ -16,6 +17,7 @@ export interface SyncProgress {
     | 'initializing'
     | 'syncing_libraries'
     | 'syncing_items'
+    | 'analyzing_misclassifications'
     | 'completed'
     | 'failed';
   startTime: Date;
@@ -41,7 +43,8 @@ export class LibrarySyncService {
     private readonly config: ConfigService,
     private readonly logger: LoggerService,
     private readonly database: DatabaseService,
-    private readonly jellyfin: JellyfinService
+    private readonly jellyfin: JellyfinService,
+    private readonly misclassification: MisclassificationService
   ) {}
 
   async startSync(
@@ -160,6 +163,42 @@ export class LibrarySyncService {
       if (options.fullSync) {
         const deletedCount = await this.cleanupOrphanedItems();
         result.itemsDeleted += deletedCount;
+      }
+
+      // Stage 3: Analyze misclassifications
+      this.currentSync.stage = 'analyzing_misclassifications';
+      this.logger.log(
+        'Analyzing library for misclassifications',
+        'LibrarySyncService'
+      );
+
+      const libraryIds = targetLibraries.map((lib) => {
+        // Find the internal library ID for each Jellyfin library
+        return this.database.library
+          .findUnique({
+            where: { jellyfinId: lib.Id },
+            select: { id: true },
+          })
+          .then((lib) => lib?.id);
+      });
+
+      const resolvedLibraryIds = (await Promise.all(libraryIds)).filter(
+        Boolean
+      ) as string[];
+
+      for (const libraryId of resolvedLibraryIds) {
+        if (!this.currentSync) break; // Check for cancellation
+
+        try {
+          await this.misclassification.scanLibraryForMisclassifications(
+            libraryId
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Failed to analyze misclassifications for library ${libraryId}: ${error}`,
+            'LibrarySyncService'
+          );
+        }
       }
 
       this.currentSync.stage = 'completed';

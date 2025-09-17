@@ -8,6 +8,10 @@ import { MetadataService } from './metadata.service.js';
 import { MetadataController } from './metadata.controller.js';
 import { BulkOperationsService } from './bulk-operations.service.js';
 import { BulkOperationsController } from './bulk-operations.controller.js';
+import { MisclassificationService } from './misclassification.service.js';
+import { MisclassificationController } from './misclassification.controller.js';
+import { ReviewQueueService } from './review-queue.service.js';
+import { ReviewQueueController } from './review-queue.controller.js';
 
 @Module({
   imports: [
@@ -17,8 +21,23 @@ import { BulkOperationsController } from './bulk-operations.controller.js';
     JellyfinModule,
     ProviderModule,
   ],
-  providers: [MetadataService, BulkOperationsService],
-  controllers: [MetadataController, BulkOperationsController],
-  exports: [MetadataService, BulkOperationsService],
+  providers: [
+    MetadataService,
+    BulkOperationsService,
+    MisclassificationService,
+    ReviewQueueService,
+  ],
+  controllers: [
+    MetadataController,
+    BulkOperationsController,
+    MisclassificationController,
+    ReviewQueueController,
+  ],
+  exports: [
+    MetadataService,
+    BulkOperationsService,
+    MisclassificationService,
+    ReviewQueueService,
+  ],
 })
 export class MetadataModule {}

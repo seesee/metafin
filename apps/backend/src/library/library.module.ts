@@ -3,11 +3,18 @@ import { ConfigModule } from '../modules/config/config.module.js';
 import { LoggerModule } from '../modules/logger/logger.module.js';
 import { DatabaseModule } from '../database/database.module.js';
 import { JellyfinModule } from '../jellyfin/jellyfin.module.js';
+import { MetadataModule } from '../metadata/metadata.module.js';
 import { LibrarySyncService } from './library-sync.service.js';
 import { LibraryController } from './library.controller.js';
 
 @Module({
-  imports: [ConfigModule, LoggerModule, DatabaseModule, JellyfinModule],
+  imports: [
+    ConfigModule,
+    LoggerModule,
+    DatabaseModule,
+    JellyfinModule,
+    MetadataModule,
+  ],
   providers: [LibrarySyncService],
   controllers: [LibraryController],
   exports: [LibrarySyncService],
