@@ -6,8 +6,13 @@ export class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    // In development, connect directly to backend port. In production, use the base path
-    this.baseUrl = dev ? 'http://localhost:8081' : base;
+    // In development, use Vite proxy (no hostname needed)
+    // In production, use the base path with full URL
+    if (dev) {
+      this.baseUrl = '';
+    } else {
+      this.baseUrl = base;
+    }
   }
 
   private async makeRequest<T>(
@@ -390,6 +395,66 @@ export class ApiClient {
     message: string;
   }> {
     return this.delete(`misclassifications/${itemId}`);
+  }
+
+  // Configuration endpoints
+  async getConfiguration(): Promise<{
+    jellyfin: {
+      url: string;
+      apiKey: string;
+    };
+    tmdb: {
+      apiKey: string;
+    };
+    providers: {
+      [key: string]: {
+        enabled: boolean;
+        rateLimit: number;
+        timeout: number;
+      };
+    };
+  }> {
+    return this.get('configuration');
+  }
+
+  async updateConfiguration(config: {
+    jellyfin?: {
+      url?: string;
+      apiKey?: string;
+    };
+    tmdb?: {
+      apiKey?: string;
+    };
+    providers?: {
+      [key: string]: {
+        enabled?: boolean;
+        rateLimit?: number;
+        timeout?: number;
+      };
+    };
+  }): Promise<{
+    success: boolean;
+    message: string;
+    updated: string[];
+    requiresRestart: boolean;
+  }> {
+    return this.put('configuration', config);
+  }
+
+  async testConnection(service: 'jellyfin' | 'tmdb', config: any): Promise<{
+    success: boolean;
+    message: string;
+    details?: any;
+  }> {
+    return this.post('configuration/test-connection', { service, config });
+  }
+
+  async reloadConfiguration(): Promise<{
+    success: boolean;
+    message: string;
+    reloaded: string[];
+  }> {
+    return this.post('configuration/reload');
   }
 }
 

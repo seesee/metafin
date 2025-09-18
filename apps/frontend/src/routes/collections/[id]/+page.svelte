@@ -218,8 +218,8 @@
                 class="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
                 on:click={() => {
                   editing = false;
-                  editName = collection.name;
-                  editOverview = collection.overview || '';
+                  editName = collection?.name || '';
+                  editOverview = collection?.overview || '';
                 }}
                 disabled={saving}
               >

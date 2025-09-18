@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { apiClient, ApiError } from '$lib/api/client.js';
   import LoadingSpinner from './LoadingSpinner.svelte';
+  import StatusIndicator from './StatusIndicator.svelte';
 
   export let itemId: string;
   export let hasArtwork: boolean = false;
@@ -78,7 +79,7 @@
       // Reload the artwork candidates to get the updated list including new search results
       await loadExistingArtworkCandidates();
 
-      console.log(`Search completed: ${searchResult.message}`);
+      console.log(`Search completed: ${(searchResult as { message?: string }).message || 'Success'}`);
     } catch (err) {
       if (err instanceof ApiError) {
         error = `${err.code}: ${err.message}`;
@@ -129,9 +130,7 @@
       formData.append('file', selectedFile);
       formData.append('type', 'Primary');
 
-      await apiClient.post(`library/items/${itemId}/artwork/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await apiClient.post(`library/items/${itemId}/artwork/upload`, formData);
 
       hasArtwork = true;
       selectedFile = null;
@@ -190,17 +189,14 @@
 <div class="bg-card border border-border rounded-lg p-6">
   <div class="flex items-center justify-between mb-4">
     <h3 class="text-lg font-semibold">Artwork</h3>
-    <div class="flex items-center gap-2">
-      <div
-        class="w-3 h-3 rounded-full {hasArtwork
-          ? 'bg-green-500'
-          : 'bg-red-500'}"
-        title={hasArtwork ? 'Has artwork' : 'Missing artwork'}
-      ></div>
-      <span class="text-sm text-muted-foreground">
-        {hasArtwork ? 'Has artwork' : 'No artwork'}
-      </span>
-    </div>
+    <StatusIndicator
+      type="artwork"
+      status={hasArtwork ? 'success' : 'error'}
+      label={hasArtwork ? 'Has Artwork' : 'No Artwork'}
+      count={artworkCandidates.length}
+      size="md"
+      showLabel={true}
+    />
   </div>
 
   {#if error}
@@ -239,18 +235,30 @@
   <!-- Search for Artwork -->
   <div class="space-y-4">
     <div>
-      <button
-        type="button"
-        class="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-        on:click={searchArtworkCandidates}
-        disabled={searching}
-      >
-        {#if searching}
-          <LoadingSpinner size="sm" />
-        {:else}
-          Search for Artwork
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+          on:click={searchArtworkCandidates}
+          disabled={searching}
+        >
+          {#if searching}
+            <LoadingSpinner size="sm" />
+          {:else}
+            Search for Artwork
+          {/if}
+        </button>
+
+        {#if artworkCandidates.length > 0}
+          <StatusIndicator
+            type="provider"
+            status="success"
+            label={`${artworkCandidates.length} Found`}
+            size="sm"
+            showLabel={true}
+          />
         {/if}
-      </button>
+      </div>
     </div>
 
     <!-- Artwork Candidates -->
@@ -276,20 +284,32 @@
                   />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between mb-1">
+                  <div class="flex items-center justify-between mb-2">
                     <span class="text-sm font-medium"
                       >{getArtworkTypeLabel(candidate.type)}</span
                     >
-                    <span class="text-xs bg-accent px-2 py-1 rounded">
-                      {Math.round(candidate.confidence * 100)}%
-                    </span>
+                    <StatusIndicator
+                      type="provider"
+                      status={candidate.confidence > 0.8 ? 'success' : candidate.confidence > 0.5 ? 'warning' : 'error'}
+                      confidence={candidate.confidence}
+                      size="sm"
+                      showLabel={false}
+                    />
                   </div>
                   <div class="text-xs text-muted-foreground space-y-1">
-                    <div>Provider: {candidate.provider}</div>
+                    <div class="flex items-center justify-between">
+                      <span>Provider: {candidate.provider}</span>
+                      {#if candidate.isApplied}
+                        <StatusIndicator
+                          type="artwork"
+                          status="success"
+                          label="Applied"
+                          size="sm"
+                          showLabel={true}
+                        />
+                      {/if}
+                    </div>
                     <div>{getDimensionsText(candidate)}</div>
-                    {#if candidate.isApplied}
-                      <div class="text-green-600">✓ Applied</div>
-                    {/if}
                   </div>
                   <button
                     type="button"

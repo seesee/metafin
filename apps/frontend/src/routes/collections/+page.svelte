@@ -3,6 +3,8 @@
   import { apiClient, ApiError } from '$lib/api/client.js';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import SearchBar from '$lib/components/SearchBar.svelte';
+  import StatusIndicator from '$lib/components/StatusIndicator.svelte';
+  import ErrorDisplay from '$lib/components/ErrorDisplay.svelte';
 
   interface Collection {
     id: string;
@@ -115,6 +117,38 @@
       day: 'numeric',
     });
   }
+
+  function getCollectionStatus(collection: Collection): 'success' | 'warning' | 'error' {
+    if (collection.itemCount === 0) return 'error';
+    if (collection.itemCount < 5) return 'warning';
+    return 'success';
+  }
+
+  function getCollectionLabel(collection: Collection): string {
+    if (collection.itemCount === 0) return 'Empty Collection';
+    if (collection.itemCount === 1) return '1 Item';
+    return `${collection.itemCount} Items`;
+  }
+
+  function getLastUpdateStatus(collection: Collection): 'success' | 'warning' | 'error' {
+    const updateDate = new Date(collection.updatedAt);
+    const daysSinceUpdate = Math.floor((Date.now() - updateDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysSinceUpdate < 7) return 'success';
+    if (daysSinceUpdate < 30) return 'warning';
+    return 'error';
+  }
+
+  function getLastUpdateDetail(collection: Collection): string {
+    const updateDate = new Date(collection.updatedAt);
+    const daysSinceUpdate = Math.floor((Date.now() - updateDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysSinceUpdate === 0) return 'Today';
+    if (daysSinceUpdate === 1) return '1 day ago';
+    if (daysSinceUpdate < 7) return `${daysSinceUpdate} days ago`;
+    if (daysSinceUpdate < 30) return `${Math.floor(daysSinceUpdate / 7)} weeks ago`;
+    return `${Math.floor(daysSinceUpdate / 30)} months ago`;
+  }
 </script>
 
 <svelte:head>
@@ -150,12 +184,15 @@
       <LoadingSpinner size="lg" text="Loading collections..." />
     </div>
   {:else if error}
-    <div
-      class="text-destructive p-4 border border-destructive/20 rounded-lg bg-destructive/5 max-w-md"
-    >
-      <p class="font-medium">Failed to load collections</p>
-      <p class="text-sm mt-1">{error}</p>
-    </div>
+    <ErrorDisplay
+      {error}
+      title="Failed to Load Collections"
+      context="Collections Page"
+      variant="error"
+      showDetails={true}
+      onRetry={() => loadCollections(currentPage, searchQuery)}
+      persistent={false}
+    />
   {:else if collections.length === 0}
     <div class="text-center py-12">
       <div class="text-muted-foreground mb-4">
@@ -196,28 +233,56 @@
       {#each collections as collection}
         <a
           href="/collections/{collection.id}"
-          class="block border border-border rounded-lg p-6 bg-card hover:shadow-lg transition-all duration-200 hover:border-primary/50"
+          class="block border border-border rounded-lg p-6 bg-card hover:shadow-lg transition-all duration-200 hover:border-primary/50 relative"
         >
-          <div class="flex items-start justify-between mb-4">
-            <h3 class="font-semibold text-lg line-clamp-2">
-              {collection.name}
-            </h3>
-            <div class="text-xs bg-accent px-2 py-1 rounded flex-shrink-0 ml-2">
-              {collection.itemCount} items
-            </div>
+          <!-- Collection Status Indicator -->
+          <div class="absolute top-4 right-4">
+            <StatusIndicator
+              type="collection"
+              status={getCollectionStatus(collection)}
+              size="sm"
+              showLabel={false}
+            />
           </div>
 
-          {#if collection.overview}
-            <p class="text-muted-foreground text-sm line-clamp-3 mb-4">
-              {collection.overview}
-            </p>
-          {/if}
+          <div class="pr-8">
+            <h3 class="font-semibold text-lg line-clamp-2 mb-3">
+              {collection.name}
+            </h3>
 
-          <div class="text-xs text-muted-foreground">
-            <div>Created {formatDate(collection.createdAt)}</div>
-            {#if collection.updatedAt !== collection.createdAt}
-              <div>Updated {formatDate(collection.updatedAt)}</div>
+            {#if collection.overview}
+              <p class="text-muted-foreground text-sm line-clamp-3 mb-4">
+                {collection.overview}
+              </p>
             {/if}
+
+            <!-- Enhanced Status Information -->
+            <div class="space-y-2">
+              <StatusIndicator
+                type="collection"
+                status={getCollectionStatus(collection)}
+                label={getCollectionLabel(collection)}
+                count={collection.itemCount}
+                size="sm"
+                showLabel={true}
+              />
+
+              <div class="flex items-center justify-between">
+                <div class="text-xs text-muted-foreground">
+                  Created {formatDate(collection.createdAt)}
+                </div>
+                {#if collection.updatedAt !== collection.createdAt}
+                  <StatusIndicator
+                    type="metadata"
+                    status={getLastUpdateStatus(collection)}
+                    label="Last Updated"
+                    detail={getLastUpdateDetail(collection)}
+                    size="sm"
+                    showDetail={true}
+                  />
+                {/if}
+              </div>
+            </div>
           </div>
         </a>
       {/each}

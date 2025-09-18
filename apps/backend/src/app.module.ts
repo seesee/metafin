@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from './modules/config/config.module.js';
 import { LoggerModule } from './modules/logger/logger.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { ConfigurationModule } from './modules/configuration/configuration.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { JellyfinModule } from './jellyfin/jellyfin.module.js';
 import { LibraryModule } from './library/library.module.js';
@@ -14,6 +15,7 @@ import { AppController } from './app.controller.js';
   imports: [
     ConfigModule,
     LoggerModule,
+    ConfigurationModule,
     DatabaseModule,
     JellyfinModule,
     LibraryModule,

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import AddToCollectionModal from './AddToCollectionModal.svelte';
+  import StatusIndicator from './StatusIndicator.svelte';
 
   interface LibraryItem {
     id: string;
@@ -81,6 +82,30 @@
     showAddToCollectionModal = false;
     selectedItem = null;
   }
+
+  function getArtworkStatus(item: LibraryItem): 'success' | 'error' {
+    return item.hasArtwork ? 'success' : 'error';
+  }
+
+  function getSyncStatus(item: LibraryItem): 'success' | 'warning' | 'error' {
+    const syncDate = new Date(item.lastSyncAt);
+    const now = new Date();
+    const daysSinceSync = Math.floor((now.getTime() - syncDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysSinceSync < 1) return 'success';
+    if (daysSinceSync < 7) return 'warning';
+    return 'error';
+  }
+
+  function getSyncDetail(item: LibraryItem): string {
+    const syncDate = new Date(item.lastSyncAt);
+    const daysSinceSync = Math.floor((Date.now() - syncDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysSinceSync === 0) return 'Today';
+    if (daysSinceSync === 1) return '1 day ago';
+    if (daysSinceSync < 7) return `${daysSinceSync} days ago`;
+    return `${daysSinceSync} days ago`;
+  }
 </script>
 
 <!-- Success Message -->
@@ -102,24 +127,32 @@
       on:keydown={(e) => handleKeyDown(e, item)}
       aria-label="View {item.name} details"
     >
-      <!-- Placeholder for artwork -->
+      <!-- Placeholder for artwork with enhanced status -->
       <div
         class="aspect-[2/3] mb-3 bg-muted rounded-lg flex items-center justify-center relative overflow-hidden"
       >
         {#if item.hasArtwork}
           <!-- TODO: Add actual artwork display -->
           <div class="text-4xl opacity-50">🎨</div>
-          <div
-            class="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full"
-            title="Has artwork"
-          ></div>
         {:else}
           <div class="text-4xl opacity-30">{getTypeIcon(item.type)}</div>
-          <div
-            class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"
-            title="Missing artwork"
-          ></div>
         {/if}
+
+        <!-- Enhanced Status Indicators -->
+        <div class="absolute top-2 right-2 flex flex-col gap-1">
+          <StatusIndicator
+            type="artwork"
+            status={getArtworkStatus(item)}
+            size="sm"
+            showLabel={false}
+          />
+          <StatusIndicator
+            type="sync"
+            status={getSyncStatus(item)}
+            size="sm"
+            showLabel={false}
+          />
+        </div>
       </div>
 
       <!-- Item Info -->
@@ -182,9 +215,24 @@
           </p>
         {/if}
 
-        <!-- Last sync -->
-        <div class="text-xs text-muted-foreground">
-          Synced {new Date(item.lastSyncAt).toLocaleDateString('en-GB')}
+        <!-- Enhanced Status Information -->
+        <div class="flex items-center justify-between text-xs">
+          <StatusIndicator
+            type="sync"
+            status={getSyncStatus(item)}
+            label="Last Sync"
+            detail={getSyncDetail(item)}
+            size="sm"
+            showLabel={true}
+            showDetail={true}
+          />
+          <StatusIndicator
+            type="artwork"
+            status={getArtworkStatus(item)}
+            label={item.hasArtwork ? 'Has Artwork' : 'No Artwork'}
+            size="sm"
+            showLabel={true}
+          />
         </div>
       </div>
     </div>

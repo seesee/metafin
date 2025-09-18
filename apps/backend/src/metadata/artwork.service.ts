@@ -154,7 +154,7 @@ export class ArtworkService {
       }
 
       // Check if provider supports artwork search (optional method)
-      const searchArtwork = (provider as any).searchArtwork;
+      const searchArtwork = (provider as unknown as { searchArtwork?: (options: ProviderArtworkSearchOptions) => Promise<ProviderArtwork[]> }).searchArtwork;
       if (typeof searchArtwork !== 'function') {
         this.logger.debug(
           `Provider ${provider.type} does not support artwork search`
@@ -194,7 +194,7 @@ export class ArtworkService {
             height: artwork.height,
             language: artwork.language || language || 'en',
             source: provider.type,
-            confidence: (artwork as any).confidence || 0.5,
+            confidence: (artwork as unknown as { confidence?: number }).confidence || 0.5,
           });
         }
       } catch (error) {
@@ -336,7 +336,7 @@ export class ArtworkService {
 
   async applyArtworkCandidate(
     candidateId: string,
-    userId?: string
+    _userId?: string
   ): Promise<void> {
     const candidate = await this.databaseService.artworkCandidate.findUnique({
       where: { id: candidateId },

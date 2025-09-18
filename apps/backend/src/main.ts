@@ -49,9 +49,13 @@ async function bootstrap(): Promise<void> {
     app.getHttpAdapter().getInstance().set('trust proxy', true);
   }
 
-  await app.listen(port);
+  // In development, listen on all interfaces (0.0.0.0)
+  // In production, default to localhost for security
+  const host = process.env.NODE_ENV === 'development' ? '0.0.0.0' : '127.0.0.1';
 
-  logger.log(`metafin backend listening on port ${port}`, 'Bootstrap');
+  await app.listen(port, host);
+
+  logger.log(`metafin backend listening on ${host}:${port}`, 'Bootstrap');
   if (basePath) {
     logger.log(`Base path: ${basePath}`, 'Bootstrap');
   }

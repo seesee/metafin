@@ -286,7 +286,7 @@ export class BulkOperationsService {
     }> = [];
 
     const providersToSearch = providerType
-      ? [this.providerRegistry.getProvider(providerType as any)]
+      ? [this.providerRegistry.getProvider(providerType as never)]
       : this.providerRegistry.getAvailableProviders();
 
     for (const provider of providersToSearch) {
@@ -549,7 +549,6 @@ export class BulkOperationsService {
     // Convert search results to update results
     return searchResults.map((result) => {
       const hasMatches = result.matches.length > 0;
-      const hasBestMatch = !!result.bestMatch;
 
       return {
         itemId: result.itemId,

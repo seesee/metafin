@@ -7,6 +7,7 @@
   import MetadataEditor from '$lib/components/MetadataEditor.svelte';
   import ArtworkGallery from '$lib/components/ArtworkGallery.svelte';
   import AddToCollectionModal from '$lib/components/AddToCollectionModal.svelte';
+  import ErrorDisplay from '$lib/components/ErrorDisplay.svelte';
 
   interface LibraryItem {
     id: string;
@@ -107,8 +108,8 @@
     }
   }
 
-  function handleMetadataUpdate(updatedItem: LibraryItem) {
-    item = updatedItem;
+  function handleMetadataUpdate(event: CustomEvent<LibraryItem>) {
+    item = event.detail;
     editing = false;
   }
 
@@ -207,18 +208,16 @@
       <LoadingSpinner size="lg" text="Loading item details..." />
     </div>
   {:else if error}
-    <div class="text-center py-12">
-      <div class="text-destructive mb-4">
-        <h3 class="text-lg font-semibold">Failed to Load Item</h3>
-        <p>{error}</p>
-      </div>
-      <button
-        type="button"
-        class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-        on:click={loadItem}
-      >
-        Try Again
-      </button>
+    <div class="container mx-auto px-6 py-8 max-w-4xl">
+      <ErrorDisplay
+        {error}
+        title="Failed to Load Library Item"
+        context="Library Item Page"
+        variant="error"
+        showDetails={true}
+        onRetry={loadItem}
+        persistent={false}
+      />
     </div>
   {:else if item}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
