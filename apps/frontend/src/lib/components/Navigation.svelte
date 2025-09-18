@@ -2,6 +2,9 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
 
+  export let isMobile: boolean = false;
+  export let closeMobileMenu: (() => void) | undefined = undefined;
+
   interface NavItem {
     label: string;
     href: string;
@@ -72,10 +75,20 @@
       }
     }
   }
+
+  function handleNavClick(href: string) {
+    goto(href);
+    // Close mobile menu when navigating
+    if (isMobile && closeMobileMenu) {
+      closeMobileMenu();
+    }
+  }
 </script>
 
 <nav
-  class="bg-card border-r border-border w-64 min-h-screen p-4"
+  class="bg-card border-r border-border w-64 min-h-screen p-4 {isMobile
+    ? 'shadow-xl'
+    : ''}"
   aria-label="Main navigation"
 >
   <!-- Logo -->
@@ -102,7 +115,7 @@
           aria-current={isActive(item.href) ? 'page' : undefined}
           on:click={(e) => {
             e.preventDefault();
-            goto(item.href);
+            handleNavClick(item.href);
           }}
         >
           <span class="text-xl flex-shrink-0" aria-hidden="true"
