@@ -1,19 +1,30 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
-export default defineConfig({
-  plugins: [sveltekit()],
-  server: {
-    port: 3000,
-    host: '0.0.0.0', // Listen on all interfaces in development
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
+export default defineConfig(({ mode }) => {
+  // Load environment variables
+  const env = loadEnv(mode, process.cwd(), '');
+
+  // Get backend configuration from environment
+  const backendPort = env.APP_PORT || '8080';
+  const backendHost = env.BACKEND_HOST || '127.0.0.1'; // Use 127.0.0.1 instead of localhost for better compatibility
+  const frontendPort = parseInt(env.FRONTEND_PORT || '3000');
+
+  return {
+    plugins: [sveltekit()],
+    server: {
+      port: frontendPort,
+      host: '0.0.0.0', // Listen on all interfaces in development
+      proxy: {
+        '/api': {
+          target: `http://${backendHost}:${backendPort}`,
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
-  },
-  define: {
-    __PUBLIC_BASE_PATH__: JSON.stringify(process.env.PUBLIC_BASE_PATH || ''),
-  },
+    define: {
+      __PUBLIC_BASE_PATH__: JSON.stringify(env.PUBLIC_BASE_PATH || ''),
+    },
+  };
 });

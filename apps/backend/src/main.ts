@@ -49,9 +49,11 @@ async function bootstrap(): Promise<void> {
     app.getHttpAdapter().getInstance().set('trust proxy', true);
   }
 
-  // In development, listen on all interfaces (0.0.0.0)
+  // Allow configurable host via BACKEND_HOST environment variable
+  // In development, default to all interfaces (0.0.0.0)
   // In production, default to localhost for security
-  const host = process.env.NODE_ENV === 'development' ? '0.0.0.0' : '127.0.0.1';
+  const host = configService.get('BACKEND_HOST') ||
+    (process.env.NODE_ENV === 'development' ? '0.0.0.0' : '127.0.0.1');
 
   await app.listen(port, host);
 

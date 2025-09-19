@@ -456,6 +456,45 @@ export class ApiClient {
   }> {
     return this.post('configuration/reload');
   }
+
+  // Library sync endpoints
+  async startLibrarySync(options?: {
+    fullSync?: boolean;
+    libraryIds?: string[];
+  }): Promise<{
+    message: string;
+    progress?: {
+      totalItems: number;
+      processedItems: number;
+      failedItems: number;
+      currentLibrary?: string;
+      stage: 'initializing' | 'syncing_libraries' | 'syncing_items' | 'analyzing_misclassifications' | 'completed' | 'failed';
+      startTime: string;
+      estimatedEndTime?: string;
+    };
+  }> {
+    return this.post('library/sync', options);
+  }
+
+  async getLibrarySyncStatus(): Promise<{
+    progress: {
+      totalItems: number;
+      processedItems: number;
+      failedItems: number;
+      currentLibrary?: string;
+      stage: 'initializing' | 'syncing_libraries' | 'syncing_items' | 'analyzing_misclassifications' | 'completed' | 'failed';
+      startTime: string;
+      estimatedEndTime?: string;
+    } | null;
+  }> {
+    return this.get('library/sync/status');
+  }
+
+  async cancelLibrarySync(): Promise<{
+    message: string;
+  }> {
+    return this.post('library/sync/cancel');
+  }
 }
 
 export class ApiError extends Error {

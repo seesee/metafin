@@ -148,8 +148,15 @@ export class JellyfinService {
       ? `/Users/${userId}/Views`
       : '/Library/VirtualFolders';
 
-    const response = await this.request<{ Items: JellyfinLibrary[] }>(endpoint);
-    return response.data.Items || [];
+    if (userId) {
+      // /Users/{userId}/Views returns { Items: [...] }
+      const response = await this.request<{ Items: JellyfinLibrary[] }>(endpoint);
+      return response.data.Items || [];
+    } else {
+      // /Library/VirtualFolders returns [...] directly
+      const response = await this.request<JellyfinLibrary[]>(endpoint);
+      return response.data || [];
+    }
   }
 
   async getItems(query: JellyfinItemsQuery): Promise<JellyfinItemsResponse> {
