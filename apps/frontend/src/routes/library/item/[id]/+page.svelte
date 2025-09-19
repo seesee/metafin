@@ -280,7 +280,7 @@
 
               <!-- Metadata Grid -->
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                {#if item.genres && item.genres.length > 0}
+                {#if item.genres && Array.isArray(item.genres) && item.genres.length > 0}
                   <div>
                     <h4 class="font-medium mb-1">Genres</h4>
                     <div class="flex flex-wrap gap-1">
@@ -293,7 +293,7 @@
                   </div>
                 {/if}
 
-                {#if item.studios && item.studios.length > 0}
+                {#if item.studios && Array.isArray(item.studios) && item.studios.length > 0}
                   <div>
                     <h4 class="font-medium mb-1">Studios</h4>
                     <p class="text-muted-foreground">
@@ -434,7 +434,7 @@
         </div>
 
         <!-- Tags -->
-        {#if item.tags && item.tags.length > 0}
+        {#if item.tags && Array.isArray(item.tags) && item.tags.length > 0}
           <div class="bg-card border border-border rounded-lg p-6">
             <h3 class="text-lg font-semibold mb-4">Tags</h3>
             <div class="flex flex-wrap gap-2">

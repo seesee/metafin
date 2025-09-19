@@ -88,7 +88,11 @@
   }
 
   function getSyncStatus(item: LibraryItem): 'success' | 'warning' | 'error' {
+    if (!item.lastSyncAt) return 'error';
+
     const syncDate = new Date(item.lastSyncAt);
+    if (isNaN(syncDate.getTime())) return 'error';
+
     const now = new Date();
     const daysSinceSync = Math.floor((now.getTime() - syncDate.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -98,7 +102,11 @@
   }
 
   function getSyncDetail(item: LibraryItem): string {
+    if (!item.lastSyncAt) return 'Never';
+
     const syncDate = new Date(item.lastSyncAt);
+    if (isNaN(syncDate.getTime())) return 'Never';
+
     const daysSinceSync = Math.floor((Date.now() - syncDate.getTime()) / (1000 * 60 * 60 * 24));
 
     if (daysSinceSync === 0) return 'Today';

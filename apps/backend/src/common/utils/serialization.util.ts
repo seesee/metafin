@@ -42,9 +42,10 @@ export function transformBigIntForSerialization<T>(obj: T): T {
 /**
  * Transform Prisma item results to ensure BigInt fields are serializable.
  * Specifically handles the runTimeTicks field and any other BigInt fields.
+ * Also parses JSON string fields back to arrays.
  *
  * @param item The Prisma item result
- * @returns The item with BigInt values converted to strings
+ * @returns The item with BigInt values converted to strings and JSON fields parsed
  */
 export function transformItemForSerialization(item: any): any {
   if (!item) {
@@ -56,6 +57,22 @@ export function transformItemForSerialization(item: any): any {
   // Convert runTimeTicks specifically since it's the known BigInt field
   if (transformed.runTimeTicks !== null && transformed.runTimeTicks !== undefined) {
     transformed.runTimeTicks = String(transformed.runTimeTicks);
+  }
+
+  // Parse JSON string fields back to arrays
+  const jsonFields = ['genres', 'tags', 'studios'];
+  for (const field of jsonFields) {
+    if (transformed[field] && typeof transformed[field] === 'string') {
+      try {
+        transformed[field] = JSON.parse(transformed[field]);
+      } catch (error) {
+        // If parsing fails, ensure it's at least an empty array
+        transformed[field] = [];
+      }
+    } else if (!transformed[field]) {
+      // Ensure field exists as empty array if null/undefined
+      transformed[field] = [];
+    }
   }
 
   // Apply general BigInt transformation to catch any other BigInt fields

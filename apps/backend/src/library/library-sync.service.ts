@@ -345,6 +345,9 @@ export class LibrarySyncService {
           'DateLastMediaAdded',
           'Overview',
           'Path',
+          'PrimaryImageAspectRatio',
+          'ImageTags',
+          'BackdropImageTags',
         ],
       });
 
@@ -413,6 +416,7 @@ export class LibrarySyncService {
       studios: JSON.stringify((item.Studios || item.studios || []).map((s: any) => s.Name || s)),
       dateCreated: new Date(item.DateCreated || item.dateCreated),
       dateModified: (item.DateModified || item.dateModified) ? new Date(item.DateModified || item.dateModified) : null,
+      hasArtwork: this.hasArtworkImages(item),
       lastSyncAt: new Date(),
     };
 
@@ -426,6 +430,37 @@ export class LibrarySyncService {
         data: itemData,
       });
     }
+  }
+
+  private hasArtworkImages(item: any): boolean {
+    // Check for common artwork types that indicate the item has artwork
+    const artworkFields = [
+      'PrimaryImageTag',
+      'BackdropImageTags',
+      'ImageTags',
+      'HasImage'
+    ];
+
+    // Check if item has a primary image tag
+    if (item.PrimaryImageTag || item.primaryImageTag) {
+      return true;
+    }
+
+    // Check if item has backdrop images
+    if (item.BackdropImageTags && Array.isArray(item.BackdropImageTags) && item.BackdropImageTags.length > 0) {
+      return true;
+    }
+
+    // Check ImageTags object for any image types
+    const imageTags = item.ImageTags || item.imageTags;
+    if (imageTags && typeof imageTags === 'object') {
+      const imageTypes = Object.keys(imageTags);
+      if (imageTypes.length > 0) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private getSupportedItemTypes(collectionType?: string): string[] {

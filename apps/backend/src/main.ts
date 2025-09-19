@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService as NestConfigService } from '@nestjs/config';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { LoggerService } from './modules/logger/logger.service.js';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
@@ -13,6 +14,33 @@ async function bootstrap(): Promise<void> {
 
   const logger = app.get(LoggerService);
   app.useLogger(logger);
+
+  // Get configuration for Swagger setup
+  const configService = app.get(NestConfigService);
+  const nodeEnv = configService.get('NODE_ENV', 'development');
+
+  // Setup OpenAPI documentation in development
+  if (nodeEnv === 'development') {
+    const config = new DocumentBuilder()
+      .setTitle('Metafin API')
+      .setDescription('A Jellyfin metadata management system for series, seasons, and episodes')
+      .setVersion('1.0')
+      .addTag('library', 'Library management and synchronisation')
+      .addTag('collections', 'Collection management')
+      .addTag('providers', 'External metadata providers')
+      .addTag('metadata', 'Metadata and artwork management')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+
+    // Expose OpenAPI spec at /api/docs.json
+    SwaggerModule.setup('api/docs', app, document, {
+      jsonDocumentUrl: 'api/docs.json',
+      yamlDocumentUrl: 'api/docs.yaml',
+    });
+
+    logger.log('OpenAPI documentation available at /api/docs', 'Bootstrap');
+  }
 
   // Security middleware
   app.use(
@@ -34,8 +62,6 @@ async function bootstrap(): Promise<void> {
   // Global filters
   app.useGlobalFilters(new GlobalExceptionFilter(logger));
 
-  // Get configuration using NestJS ConfigService directly
-  const configService = app.get(NestConfigService);
   const port = configService.get('APP_PORT', 8080);
   const basePath = configService.get('BASE_PATH', '');
 

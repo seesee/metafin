@@ -7,6 +7,14 @@ import {
   Query,
   Param,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 import { LibrarySyncService, SyncProgress } from './library-sync.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { JellyfinService } from '../jellyfin/jellyfin.service.js';
@@ -62,6 +70,7 @@ export interface SearchArtworkRequest {
 }
 
 
+@ApiTags('library')
 @Controller('api/library')
 export class LibraryController {
   constructor(
@@ -72,6 +81,30 @@ export class LibraryController {
   ) {}
 
   @Post('sync')
+  @ApiOperation({
+    summary: 'Start library synchronisation',
+    description: 'Initiates synchronisation between Jellyfin libraries and the local database'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        fullSync: { type: 'boolean', description: 'Whether to perform a full sync' },
+        libraryIds: { type: 'array', items: { type: 'string' }, description: 'Specific library IDs to sync' }
+      }
+    }
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Synchronisation started successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        progress: { type: 'object' }
+      }
+    }
+  })
   async startSync(
     @Body() body: StartSyncRequest
   ): Promise<{ message: string; progress?: SyncProgress }> {
@@ -100,6 +133,37 @@ export class LibraryController {
   }
 
   @Get('items')
+  @ApiOperation({
+    summary: 'Get library items',
+    description: 'Retrieve a paginated list of library items with optional filtering and sorting'
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 24, max: 100)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term for item names and descriptions' })
+  @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by item type (Series, Season, Episode)' })
+  @ApiQuery({ name: 'library', required: false, type: String, description: 'Filter by library name' })
+  @ApiQuery({ name: 'hasArtwork', required: false, type: Boolean, description: 'Filter by artwork availability' })
+  @ApiQuery({ name: 'sortBy', required: false, type: String, description: 'Field to sort by' })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], description: 'Sort order' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved library items',
+    schema: {
+      type: 'object',
+      properties: {
+        items: { type: 'array' },
+        pagination: {
+          type: 'object',
+          properties: {
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            total: { type: 'number' },
+            totalPages: { type: 'number' }
+          }
+        }
+      }
+    }
+  })
   async getLibraryItems(@Query() query: LibraryItemsQuery) {
     const page = parseInt(String(query.page || '1'));
     const limit = Math.min(parseInt(String(query.limit || '24')), 100);

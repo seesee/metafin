@@ -8,6 +8,7 @@ import {
   Param,
   Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CollectionsService } from './collections.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { transformItemForSerialization } from '../common/utils/serialization.util.js';
@@ -33,6 +34,7 @@ export interface CollectionsQuery {
   sortOrder?: 'asc' | 'desc';
 }
 
+@ApiTags('collections')
 @Controller('api/collections')
 export class CollectionsController {
   constructor(
