@@ -441,10 +441,10 @@ export class ApiClient {
     return this.put('configuration', config);
   }
 
-  async testConnection(service: 'jellyfin' | 'tmdb', config: any): Promise<{
+  async testConnection(service: 'jellyfin' | 'tmdb', config: unknown): Promise<{
     success: boolean;
     message: string;
-    details?: any;
+    details?: unknown;
   }> {
     return this.post('configuration/test-connection', { service, config });
   }
