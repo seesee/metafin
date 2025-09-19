@@ -11,6 +11,10 @@ import { LibrarySyncService, SyncProgress } from './library-sync.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { JellyfinService } from '../jellyfin/jellyfin.service.js';
 import { ArtworkService } from '../metadata/artwork.service.js';
+import {
+  transformItemsForSerialization,
+  transformItemForSerialization
+} from '../common/utils/serialization.util.js';
 
 export interface StartSyncRequest {
   fullSync?: boolean;
@@ -151,7 +155,7 @@ export class LibraryController {
     ]);
 
     return {
-      items,
+      items: transformItemsForSerialization(items),
       pagination: {
         page,
         limit,
@@ -178,7 +182,7 @@ export class LibraryController {
       throw new Error('Item not found');
     }
 
-    return item;
+    return transformItemForSerialization(item);
   }
 
   @Get('libraries')
@@ -263,7 +267,7 @@ export class LibraryController {
       );
     }
 
-    return updatedItem;
+    return transformItemForSerialization(updatedItem);
   }
 
   @Get('items/:id/artwork/candidates')

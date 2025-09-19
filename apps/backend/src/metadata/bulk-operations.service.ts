@@ -3,6 +3,7 @@ import { DatabaseService } from '../database/database.service.js';
 import { JellyfinService } from '../jellyfin/jellyfin.service.js';
 import { ProviderRegistryService } from '../providers/provider-registry.service.js';
 import { ArtworkService } from './artwork.service.js';
+import type { ProviderType } from '@metafin/shared';
 
 export interface BulkMetadataUpdate {
   itemId: string;
@@ -285,7 +286,7 @@ export class BulkOperationsService {
     }> = [];
 
     const providersToSearch = providerType
-      ? [this.providerRegistry.getProvider(providerType as never)]
+      ? [this.providerRegistry.getProvider(providerType as ProviderType)]
       : this.providerRegistry.getAvailableProviders();
 
     for (const provider of providersToSearch) {

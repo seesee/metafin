@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { CollectionsService } from './collections.service.js';
 import { DatabaseService } from '../database/database.service.js';
+import { transformItemForSerialization } from '../common/utils/serialization.util.js';
 
 export interface CreateCollectionRequest {
   name: string;
@@ -127,18 +128,21 @@ export class CollectionsController {
       type: collection.type,
       createdAt: collection.createdAt,
       updatedAt: collection.updatedAt,
-      items: collection.items.map((collectionItem) => ({
-        id: collectionItem.item.id,
-        jellyfinId: collectionItem.item.jellyfinId,
-        name: collectionItem.item.name,
-        type: collectionItem.item.type,
-        year: collectionItem.item.year,
-        overview: collectionItem.item.overview,
-        parentName: collectionItem.item.parentId ? 'Parent Item' : undefined,
-        libraryName: collectionItem.item.library?.name,
-        hasArtwork: collectionItem.item.hasArtwork,
-        lastSyncAt: collectionItem.item.lastSyncAt,
-      })),
+      items: collection.items.map((collectionItem) =>
+        transformItemForSerialization({
+          id: collectionItem.item.id,
+          jellyfinId: collectionItem.item.jellyfinId,
+          name: collectionItem.item.name,
+          type: collectionItem.item.type,
+          year: collectionItem.item.year,
+          overview: collectionItem.item.overview,
+          runTimeTicks: collectionItem.item.runTimeTicks,
+          parentName: collectionItem.item.parentId ? 'Parent Item' : undefined,
+          libraryName: collectionItem.item.library?.name,
+          hasArtwork: collectionItem.item.hasArtwork,
+          lastSyncAt: collectionItem.item.lastSyncAt,
+        })
+      ),
     };
   }
 
