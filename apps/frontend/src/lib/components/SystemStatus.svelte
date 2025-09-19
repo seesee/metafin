@@ -147,11 +147,19 @@
 
     if (hasJellyfinError || hasDatabaseError || hasMetafinError) return 'error';
 
-    // Warning if no providers or no Jellyfin config
-    const hasProviders = providerConfigs.length > 0;
+    // Check if required configuration is missing
+    const hasProviders = providerConfigs.length > 0 && providerConfigs.some(p => p.enabled);
     const hasJellyfinConfig = healthData.info.metafin.info.configuration.hasJellyfinConfig;
 
-    if (!hasProviders || !hasJellyfinConfig) return 'warning';
+    if (!hasJellyfinConfig) return 'error'; // Jellyfin config is required
+    if (!hasProviders) return 'warning'; // Providers are strongly recommended
+
+    // Check if system appears to be in initial state (libraries but no items)
+    const hasLibraries = healthData.info.database.info.stats.libraryCount > 0;
+    const hasItems = healthData.info.database.info.stats.itemCount > 0;
+
+    // If we have libraries but no items, show warning (likely needs sync)
+    if (hasLibraries && !hasItems) return 'warning';
 
     return 'success';
   }

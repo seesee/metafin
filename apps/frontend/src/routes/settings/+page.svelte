@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { apiClient } from '$lib/api/client.js';
+  import { apiClient, ApiError } from '$lib/api/client.js';
   import StatusIndicator from '$lib/components/StatusIndicator.svelte';
   import ErrorDisplay from '$lib/components/ErrorDisplay.svelte';
   import SystemStatus from '$lib/components/SystemStatus.svelte';
@@ -252,6 +252,148 @@
     }
   }
 
+  // Library sync functionality
+  let syncing = false;
+  let syncProgress: any = null;
+  let syncPollingInterval: number | null = null;
+
+  async function startLibrarySync(fullSync = false) {
+    syncing = true;
+    errors = [];
+    successMessage = '';
+
+    try {
+      const result = await apiClient.startLibrarySync({ fullSync });
+      // Don't set successMessage immediately, let the polling handle status updates
+      syncProgress = result.progress;
+
+      // Start polling for sync progress
+      if (syncProgress) {
+        startSyncPolling();
+      }
+    } catch (error) {
+      let errorMsg: string;
+      if (error instanceof ApiError) {
+        errorMsg = `Failed to start library sync: ${error.message}`;
+        if (error.details?.reason) {
+          errorMsg += ` (${error.details.reason})`;
+        }
+      } else {
+        errorMsg = error instanceof Error ? error.message : 'Failed to start library sync';
+      }
+      errors.push(errorMsg);
+      console.error('Failed to start library sync:', error);
+      syncing = false;
+    }
+  }
+
+  async function cancelLibrarySync() {
+    try {
+      await apiClient.cancelLibrarySync();
+      successMessage = 'Library sync cancelled';
+      stopSyncPolling();
+      syncProgress = null;
+      syncing = false;
+    } catch (error) {
+      let errorMsg: string;
+      if (error instanceof ApiError) {
+        errorMsg = `Failed to cancel library sync: ${error.message}`;
+        if (error.details?.reason) {
+          errorMsg += ` (${error.details.reason})`;
+        }
+      } else {
+        errorMsg = error instanceof Error ? error.message : 'Failed to cancel library sync';
+      }
+      errors.push(errorMsg);
+    }
+  }
+
+  function startSyncPolling() {
+    stopSyncPolling(); // Clear any existing interval
+
+    syncPollingInterval = window.setInterval(async () => {
+      try {
+        const result = await apiClient.getLibrarySyncStatus();
+        syncProgress = result.progress;
+
+        if (!syncProgress || syncProgress.stage === 'completed' || syncProgress.stage === 'failed') {
+          stopSyncPolling();
+          syncing = false;
+
+          if (syncProgress?.stage === 'completed') {
+            successMessage = 'Library sync completed successfully!';
+            // Keep the final progress state for a moment, then clear it
+            setTimeout(() => {
+              syncProgress = null;
+            }, 3000);
+          } else if (syncProgress?.stage === 'failed') {
+            let failedMessage = 'Library sync failed';
+            if (syncProgress.failedItems > 0) {
+              failedMessage += ` - ${syncProgress.failedItems} items failed to sync`;
+            }
+            if (syncProgress.processedItems > 0) {
+              failedMessage += ` (${syncProgress.processedItems} items processed)`;
+            }
+            errors.push(failedMessage);
+            // Clear progress immediately on failure
+            syncProgress = null;
+          } else {
+            // Sync was cancelled or stopped, clear progress
+            syncProgress = null;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to get sync status:', error);
+        let errorMsg: string;
+        if (error instanceof ApiError) {
+          errorMsg = `Lost connection to sync progress: ${error.message}`;
+        } else {
+          errorMsg = 'Lost connection to sync progress - sync may still be running';
+        }
+        errors.push(errorMsg);
+        stopSyncPolling();
+        syncing = false;
+      }
+    }, 1000); // Poll every second
+  }
+
+  function stopSyncPolling() {
+    if (syncPollingInterval) {
+      clearInterval(syncPollingInterval);
+      syncPollingInterval = null;
+    }
+  }
+
+  function getSyncProgressPercentage(): number {
+    if (!syncProgress || syncProgress.totalItems === 0) return 0;
+    return Math.round((syncProgress.processedItems / syncProgress.totalItems) * 100);
+  }
+
+  function formatSyncStage(stage: string): string {
+    switch (stage) {
+      case 'initializing':
+        return 'Initialising...';
+      case 'syncing_libraries':
+        return 'Syncing libraries';
+      case 'syncing_items':
+        return 'Syncing items';
+      case 'analyzing_misclassifications':
+        return 'Analysing misclassifications';
+      case 'completed':
+        return 'Completed';
+      case 'failed':
+        return 'Failed';
+      default:
+        return stage;
+    }
+  }
+
+  // Clean up polling on component destroy
+  import { onDestroy } from 'svelte';
+  onDestroy(() => {
+    stopSyncPolling();
+  });
+
   function getTestResult(service: string) {
     return testResults.find(r => r.service === service);
   }
@@ -493,6 +635,104 @@
               <div>Backend API: <code>http://localhost:{config.backend.port}/api</code></div>
               <div>Health Check: <code>http://localhost:{config.backend.port}/api/health</code></div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Library Sync -->
+      <div class="bg-card border border-border rounded-lg p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <StatusIndicator
+            type="provider"
+            status={syncing ? 'pending' : config.jellyfin.connected ? 'success' : 'error'}
+            size="md"
+            showLabel={false}
+          />
+          <h2 class="text-xl font-semibold">Library Sync</h2>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <div class="space-y-4">
+              <p class="text-sm text-muted-foreground">
+                Sync your Jellyfin libraries to metafin for metadata analysis and management.
+              </p>
+
+              <div class="flex gap-3">
+                <button
+                  type="button"
+                  class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  on:click={() => startLibrarySync(false)}
+                  disabled={syncing || !config.jellyfin.connected}
+                >
+                  {syncing ? 'Syncing...' : 'Start Sync'}
+                </button>
+
+                <button
+                  type="button"
+                  class="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                  on:click={() => startLibrarySync(true)}
+                  disabled={syncing || !config.jellyfin.connected}
+                >
+                  Full Sync
+                </button>
+
+                {#if syncing}
+                  <button
+                    type="button"
+                    class="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/10 transition-colors"
+                    on:click={cancelLibrarySync}
+                  >
+                    Cancel
+                  </button>
+                {/if}
+              </div>
+
+              <div class="text-xs text-muted-foreground">
+                <div><strong>Start Sync:</strong> Incremental sync of new/changed items</div>
+                <div><strong>Full Sync:</strong> Complete resync of all libraries and items</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="font-medium mb-2">Sync Status</h3>
+            {#if syncProgress}
+              <div class="space-y-3">
+                <div class="flex justify-between text-sm">
+                  <span>{formatSyncStage(syncProgress.stage)}</span>
+                  <span>{getSyncProgressPercentage()}%</span>
+                </div>
+
+                <div class="w-full bg-muted rounded-full h-2">
+                  <div
+                    class="bg-primary h-2 rounded-full transition-all duration-300"
+                    style="width: {getSyncProgressPercentage()}%"
+                  ></div>
+                </div>
+
+                <div class="text-xs text-muted-foreground space-y-1">
+                  {#if syncProgress.currentLibrary}
+                    <div>Library: {syncProgress.currentLibrary}</div>
+                  {/if}
+                  <div>Items: {syncProgress.processedItems} / {syncProgress.totalItems}</div>
+                  {#if syncProgress.failedItems > 0}
+                    <div class="text-destructive">Failed: {syncProgress.failedItems}</div>
+                  {/if}
+                  {#if syncProgress.estimatedEndTime}
+                    <div>ETA: {new Date(syncProgress.estimatedEndTime).toLocaleTimeString()}</div>
+                  {/if}
+                </div>
+              </div>
+            {:else}
+              <div class="text-sm text-muted-foreground">
+                {#if !config.jellyfin.connected}
+                  Jellyfin must be connected to sync libraries.
+                {:else}
+                  No sync in progress.
+                {/if}
+              </div>
+            {/if}
           </div>
         </div>
       </div>

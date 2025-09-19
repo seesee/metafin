@@ -6,7 +6,7 @@ import { JellyfinService } from '../jellyfin/jellyfin.service.js';
 import { MisclassificationService } from '../metadata/misclassification.service.js';
 import { AppError } from '@metafin/shared';
 import { ItemType } from '@metafin/shared';
-import type { JellyfinLibrary, JellyfinItem } from '@metafin/shared';
+import type { JellyfinLibrary } from '@metafin/shared';
 
 export interface SyncProgress {
   totalItems: number;
@@ -145,12 +145,51 @@ export class LibrarySyncService {
       this.currentSync.stage = 'syncing_items';
       this.logger.log('Syncing library items', 'LibrarySyncService');
 
+      // First, calculate total items across all libraries
+      this.logger.log('Calculating total items across all libraries', 'LibrarySyncService');
+      let totalItemsAcrossLibraries = 0;
+      for (const library of targetLibraries) {
+        if (!this.currentSync) break; // Check for cancellation
+
+        const supportedTypes = this.getSupportedItemTypes(library.CollectionType);
+        const countResponse = await this.jellyfin.getItems({
+          parentId: library.Id,
+          includeItemTypes: supportedTypes,
+          recursive: true,
+          startIndex: 0,
+          limit: 1, // Just get the count, not the items
+          fields: [],
+        });
+        totalItemsAcrossLibraries += countResponse.TotalRecordCount;
+      }
+
+      this.currentSync.totalItems = totalItemsAcrossLibraries;
+      this.logger.log(`Total items to sync: ${totalItemsAcrossLibraries}`, 'LibrarySyncService');
+
+      // Now sync the libraries
       for (const library of targetLibraries) {
         if (!this.currentSync) break; // Check for cancellation
 
         this.currentSync.currentLibrary = library.Name;
+
+        // Get the internal library ID from the database
+        const jellyfinId = library.Id || (library as any).ItemId;
+        const internalLibrary = await this.database.library.findUnique({
+          where: { jellyfinId },
+          select: { id: true }
+        });
+
+        if (!internalLibrary) {
+          this.logger.warn(
+            `Library not found in database: ${library.Name} (${jellyfinId})`,
+            'LibrarySyncService'
+          );
+          continue;
+        }
+
         const syncStats = await this.syncLibraryItems(
           library,
+          internalLibrary.id,
           options.fullSync || false
         );
 
@@ -235,12 +274,23 @@ export class LibrarySyncService {
   }
 
   private async syncLibrary(library: JellyfinLibrary): Promise<void> {
+    // Handle both VirtualFolders (uses ItemId) and Views (uses Id) response formats
+    const jellyfinId = library.Id || (library as any).ItemId;
+
+    if (!jellyfinId) {
+      this.logger.warn(
+        `Library missing ID field: ${JSON.stringify(library)}`,
+        'LibrarySyncService'
+      );
+      return;
+    }
+
     const existingLibrary = await this.database.library.findUnique({
-      where: { jellyfinId: library.Id },
+      where: { jellyfinId },
     });
 
     const libraryData = {
-      jellyfinId: library.Id,
+      jellyfinId,
       name: library.Name,
       type: library.CollectionType || 'unknown',
       locations: JSON.stringify(library.Locations || []),
@@ -266,6 +316,7 @@ export class LibrarySyncService {
 
   private async syncLibraryItems(
     library: JellyfinLibrary,
+    internalLibraryId: string,
     _fullSync: boolean
   ): Promise<{ added: number; updated: number; deleted: number }> {
     const stats = { added: 0, updated: 0, deleted: 0 };
@@ -299,14 +350,9 @@ export class LibrarySyncService {
 
       if (response.Items.length === 0) break;
 
-      // Update progress
-      if (this.currentSync.totalItems === 0) {
-        this.currentSync.totalItems = response.TotalRecordCount;
-      }
-
       for (const item of response.Items) {
         try {
-          await this.syncItem(item, library.Id);
+          await this.syncItem(item, internalLibraryId);
           stats.added++; // This would need more logic to differentiate add/update
           this.currentSync.processedItems++;
         } catch (error) {
@@ -329,40 +375,44 @@ export class LibrarySyncService {
     return stats;
   }
 
-  private async syncItem(item: JellyfinItem, libraryId: string): Promise<void> {
-    // Convert Jellyfin item types to our internal types
-    const itemType = this.mapJellyfinItemType(item.type);
+  private async syncItem(item: any, libraryId: string): Promise<void> {
+    // Handle raw Jellyfin API response format (capitalized fields)
+    const rawType = item.Type || item.type;
+    const itemType = this.mapJellyfinItemType(rawType);
     if (!itemType) {
       this.logger.debug(
-        `Skipping unsupported item type: ${item.type}`,
+        `Skipping unsupported item type: ${rawType}`,
         'LibrarySyncService'
       );
       return;
     }
 
+    // Handle both capitalized (raw API) and lowercase (normalized) field names
+    const jellyfinId = item.Id || item.id;
+
     const existingItem = await this.database.item.findUnique({
-      where: { jellyfinId: item.id },
+      where: { jellyfinId },
     });
 
     const itemData = {
-      jellyfinId: item.id,
-      name: item.name,
+      jellyfinId,
+      name: item.Name || item.name,
       type: itemType,
       libraryId: libraryId,
-      parentId: item.parentId,
-      path: item.path,
-      overview: item.overview,
-      year: item.year,
-      premiereDate: item.premiereDate ? new Date(item.premiereDate) : null,
-      runTimeTicks: item.runTimeTicks ? BigInt(item.runTimeTicks) : null,
-      indexNumber: item.indexNumber,
-      parentIndexNumber: item.parentIndexNumber,
-      providerIds: JSON.stringify(item.providerIds || {}),
-      genres: JSON.stringify(item.genres || []),
-      tags: JSON.stringify(item.tags || []),
-      studios: JSON.stringify(item.studios || []),
-      dateCreated: new Date(item.dateCreated),
-      dateModified: item.dateModified ? new Date(item.dateModified) : null,
+      parentId: item.ParentId || item.parentId,
+      path: item.Path || item.path,
+      overview: item.Overview || item.overview,
+      year: item.ProductionYear || item.year,
+      premiereDate: (item.PremiereDate || item.premiereDate) ? new Date(item.PremiereDate || item.premiereDate) : null,
+      runTimeTicks: (item.RunTimeTicks || item.runTimeTicks) ? BigInt(item.RunTimeTicks || item.runTimeTicks) : null,
+      indexNumber: item.IndexNumber || item.indexNumber,
+      parentIndexNumber: item.ParentIndexNumber || item.parentIndexNumber,
+      providerIds: JSON.stringify(item.ProviderIds || item.providerIds || {}),
+      genres: JSON.stringify(item.Genres || item.genres || []),
+      tags: JSON.stringify(item.Tags || item.tags || []),
+      studios: JSON.stringify((item.Studios || item.studios || []).map((s: any) => s.Name || s)),
+      dateCreated: new Date(item.DateCreated || item.dateCreated),
+      dateModified: (item.DateModified || item.dateModified) ? new Date(item.DateModified || item.dateModified) : null,
       lastSyncAt: new Date(),
     };
 
@@ -386,6 +436,8 @@ export class LibrarySyncService {
         return ['Movie'];
       case 'mixed':
         return ['Series', 'Season', 'Episode', 'Movie'];
+      case 'boxsets':
+        return ['BoxSet'];
       default:
         return ['Series', 'Season', 'Episode', 'Movie'];
     }
