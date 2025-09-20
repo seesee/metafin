@@ -439,12 +439,7 @@ export class LibrarySyncService {
 
   private hasArtworkImages(item: any): boolean {
     // Check for common artwork types that indicate the item has artwork
-    const artworkFields = [
-      'PrimaryImageTag',
-      'BackdropImageTags',
-      'ImageTags',
-      'HasImage'
-    ];
+    // Check for common artwork types that indicate the item has artwork
 
     // Check if item has a primary image tag
     if (item.PrimaryImageTag || item.primaryImageTag) {
@@ -542,7 +537,7 @@ export class LibrarySyncService {
           await this.syncCollection(collection);
         } catch (error) {
           this.logger.warn(
-            `Failed to sync collection ${collection.Name}: ${error}`,
+            `Failed to sync collection ${collection.name}: ${error}`,
             'LibrarySyncService'
           );
         }
@@ -557,8 +552,8 @@ export class LibrarySyncService {
   }
 
   private async syncCollection(collection: any): Promise<void> {
-    const jellyfinId = collection.Id;
-    const name = collection.Name;
+    const jellyfinId = collection.id;
+    const name = collection.name;
 
     if (!jellyfinId || !name) {
       this.logger.warn(
@@ -608,7 +603,7 @@ export class LibrarySyncService {
   private async syncCollectionItems(collection: any, collectionId: string): Promise<void> {
     try {
       // Get items in this collection from Jellyfin
-      const collectionItems = await this.jellyfin.getCollectionItems(collection.Id);
+      const collectionItems = await this.jellyfin.getCollectionItems(collection.id);
 
       // Clear existing collection items
       await this.database.collectionItem.deleteMany({
@@ -621,7 +616,7 @@ export class LibrarySyncService {
 
         // Find the corresponding item in our database
         const dbItem = await this.database.item.findUnique({
-          where: { jellyfinId: item.Id },
+          where: { jellyfinId: item.id },
         });
 
         if (dbItem) {
@@ -634,19 +629,19 @@ export class LibrarySyncService {
           });
         } else {
           this.logger.debug(
-            `Collection item ${item.Name} (${item.Id}) not found in database`,
+            `Collection item ${item.name} (${item.id}) not found in database`,
             'LibrarySyncService'
           );
         }
       }
 
       this.logger.debug(
-        `Synced ${collectionItems.length} items for collection ${collection.Name}`,
+        `Synced ${collectionItems.length} items for collection ${collection.name}`,
         'LibrarySyncService'
       );
     } catch (error) {
       this.logger.warn(
-        `Failed to sync items for collection ${collection.Name}: ${error}`,
+        `Failed to sync items for collection ${collection.name}: ${error}`,
         'LibrarySyncService'
       );
     }

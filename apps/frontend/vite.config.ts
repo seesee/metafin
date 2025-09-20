@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
 
   // Get backend configuration from environment
   const backendPort = env.APP_PORT || '8080';
-  const backendHost = env.BACKEND_HOST || '127.0.0.1'; // Use 127.0.0.1 instead of localhost for better compatibility
+  const backendHost = env.BACKEND_HOST === '0.0.0.0' ? 'localhost' : (env.BACKEND_HOST || 'localhost'); // Use localhost for proxy connections
   const frontendPort = parseInt(env.FRONTEND_PORT || '3000');
 
   return {
