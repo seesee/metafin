@@ -25,22 +25,38 @@
     };
   }
 
+  interface SyncProgress {
+    totalItems: number;
+    processedItems: number;
+    failedItems: number;
+    currentLibrary?: string;
+    stage:
+      | 'initializing'
+      | 'syncing_libraries'
+      | 'syncing_items'
+      | 'analyzing_misclassifications'
+      | 'completed'
+      | 'failed';
+    startTime: Date;
+    estimatedEndTime?: Date;
+  }
+
   let config: SystemConfig = {
     jellyfin: {
       url: '',
       apiKey: '',
-      connected: false
+      connected: false,
     },
     tmdb: {
       apiKey: '',
-      configured: false
+      configured: false,
     },
     backend: {
       port: '8080',
       basePath: '/',
       version: '0.1.0',
-      environment: 'development'
-    }
+      environment: 'development',
+    },
   };
 
   let loading = true;
@@ -48,7 +64,11 @@
   let testing = false;
   let errors: string[] = [];
   let successMessage = '';
-  let testResults: { service: string; status: 'success' | 'error'; message: string }[] = [];
+  let testResults: {
+    service: string;
+    status: 'success' | 'error';
+    message: string;
+  }[] = [];
 
   // Form state
   let jellyfinUrl = '';
@@ -67,31 +87,42 @@
       // Load configuration from the configuration endpoint
       const [healthData, configData] = await Promise.all([
         apiClient.getHealth(),
-        apiClient.getConfiguration()
+        apiClient.getConfiguration(),
       ]);
 
       // Extract configuration from both health and config data
-      config.jellyfin.url = configData.jellyfin.url || healthData.info?.metafin?.info?.endpoints?.jellyfin?.url || '';
-      config.jellyfin.apiKey = configData.jellyfin.apiKey ? 'Configured (saved)' : '';
+      config.jellyfin.url =
+        configData.jellyfin.url ||
+        healthData.info?.metafin?.info?.endpoints?.jellyfin?.url ||
+        '';
+      config.jellyfin.apiKey = configData.jellyfin.apiKey
+        ? 'Configured (saved)'
+        : '';
       config.jellyfin.connected = healthData.info?.jellyfin?.status === 'up';
       config.jellyfin.serverName = healthData.info?.jellyfin?.info?.serverName;
       config.jellyfin.version = healthData.info?.jellyfin?.info?.version;
 
-      config.tmdb.configured = !!(configData.tmdb.apiKey || healthData.info?.metafin?.info?.configuration?.hasTmdbConfig);
+      config.tmdb.configured = !!(
+        configData.tmdb.apiKey ||
+        healthData.info?.metafin?.info?.configuration?.hasTmdbConfig
+      );
 
-      config.backend.port = healthData.info?.metafin?.info?.endpoints?.backend?.port || '8080';
+      config.backend.port =
+        healthData.info?.metafin?.info?.endpoints?.backend?.port || '8080';
       config.backend.basePath = healthData.info?.metafin?.info?.basePath || '/';
-      config.backend.version = healthData.info?.metafin?.info?.version || '0.1.0';
-      config.backend.environment = healthData.info?.metafin?.info?.environment || 'development';
+      config.backend.version =
+        healthData.info?.metafin?.info?.version || '0.1.0';
+      config.backend.environment =
+        healthData.info?.metafin?.info?.environment || 'development';
 
       // Set form values - populate with saved configuration
       jellyfinUrl = configData.jellyfin.url || config.jellyfin.url;
       // Don't populate API keys for security, but show placeholders if they exist
       jellyfinApiKey = '';
       tmdbApiKey = '';
-
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to load configuration';
+      const errorMsg =
+        error instanceof Error ? error.message : 'Failed to load configuration';
       errors.push(errorMsg);
       console.error('Failed to load configuration:', error);
     } finally {
@@ -101,7 +132,7 @@
 
   async function testConnection(service: 'jellyfin' | 'tmdb') {
     testing = true;
-    testResults = testResults.filter(r => r.service !== service);
+    testResults = testResults.filter((r) => r.service !== service);
 
     try {
       if (service === 'jellyfin') {
@@ -109,7 +140,7 @@
           testResults.push({
             service: 'jellyfin',
             status: 'error',
-            message: 'Jellyfin URL and API key are required'
+            message: 'Jellyfin URL and API key are required',
           });
           return;
         }
@@ -117,41 +148,42 @@
         // Use the backend test connection endpoint
         const result = await apiClient.testConnection('jellyfin', {
           url: jellyfinUrl,
-          apiKey: jellyfinApiKey
+          apiKey: jellyfinApiKey,
         });
 
         testResults.push({
           service: 'jellyfin',
           status: result.success ? 'success' : 'error',
-          message: result.message
+          message: result.message,
         });
       } else if (service === 'tmdb') {
         if (!tmdbApiKey.trim()) {
           testResults.push({
             service: 'tmdb',
             status: 'error',
-            message: 'TMDb API key is required'
+            message: 'TMDb API key is required',
           });
           return;
         }
 
         // Use the backend test connection endpoint
         const result = await apiClient.testConnection('tmdb', {
-          apiKey: tmdbApiKey
+          apiKey: tmdbApiKey,
         });
 
         testResults.push({
           service: 'tmdb',
           status: result.success ? 'success' : 'error',
-          message: result.message
+          message: result.message,
         });
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Connection test failed';
+      const errorMsg =
+        error instanceof Error ? error.message : 'Connection test failed';
       testResults.push({
         service,
         status: 'error',
-        message: errorMsg
+        message: errorMsg,
       });
     } finally {
       testing = false;
@@ -165,7 +197,7 @@
 
     try {
       // Build the configuration update object
-      const configUpdate: any = {};
+      const configUpdate: Record<string, unknown> = {};
 
       // Update Jellyfin configuration if values are provided
       if (jellyfinUrl.trim() || jellyfinApiKey.trim()) {
@@ -181,7 +213,7 @@
       // Update TMDb configuration if API key is provided
       if (tmdbApiKey.trim()) {
         configUpdate.tmdb = {
-          apiKey: tmdbApiKey.trim()
+          apiKey: tmdbApiKey.trim(),
         };
       }
 
@@ -214,7 +246,8 @@
         errors.push('Failed to save configuration');
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to save configuration';
+      const errorMsg =
+        error instanceof Error ? error.message : 'Failed to save configuration';
       errors.push(errorMsg);
       console.error('Failed to save configuration:', error);
     } finally {
@@ -244,7 +277,10 @@
         errors.push('Failed to reload configuration');
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to reload configuration';
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : 'Failed to reload configuration';
       errors.push(errorMsg);
       console.error('Failed to reload configuration:', error);
     } finally {
@@ -254,7 +290,7 @@
 
   // Library sync functionality
   let syncing = false;
-  let syncProgress: any = null;
+  let syncProgress: SyncProgress | null = null;
   let syncPollingInterval: number | null = null;
 
   async function startLibrarySync(fullSync = false) {
@@ -279,7 +315,10 @@
           errorMsg += ` (${error.details.reason})`;
         }
       } else {
-        errorMsg = error instanceof Error ? error.message : 'Failed to start library sync';
+        errorMsg =
+          error instanceof Error
+            ? error.message
+            : 'Failed to start library sync';
       }
       errors.push(errorMsg);
       console.error('Failed to start library sync:', error);
@@ -302,7 +341,10 @@
           errorMsg += ` (${error.details.reason})`;
         }
       } else {
-        errorMsg = error instanceof Error ? error.message : 'Failed to cancel library sync';
+        errorMsg =
+          error instanceof Error
+            ? error.message
+            : 'Failed to cancel library sync';
       }
       errors.push(errorMsg);
     }
@@ -316,7 +358,11 @@
         const result = await apiClient.getLibrarySyncStatus();
         syncProgress = result.progress;
 
-        if (!syncProgress || syncProgress.stage === 'completed' || syncProgress.stage === 'failed') {
+        if (
+          !syncProgress ||
+          syncProgress.stage === 'completed' ||
+          syncProgress.stage === 'failed'
+        ) {
           stopSyncPolling();
           syncing = false;
 
@@ -348,7 +394,8 @@
         if (error instanceof ApiError) {
           errorMsg = `Lost connection to sync progress: ${error.message}`;
         } else {
-          errorMsg = 'Lost connection to sync progress - sync may still be running';
+          errorMsg =
+            'Lost connection to sync progress - sync may still be running';
         }
         errors.push(errorMsg);
         stopSyncPolling();
@@ -366,7 +413,9 @@
 
   function getSyncProgressPercentage(): number {
     if (!syncProgress || syncProgress.totalItems === 0) return 0;
-    return Math.round((syncProgress.processedItems / syncProgress.totalItems) * 100);
+    return Math.round(
+      (syncProgress.processedItems / syncProgress.totalItems) * 100
+    );
   }
 
   function formatSyncStage(stage: string): string {
@@ -395,7 +444,7 @@
   });
 
   function getTestResult(service: string) {
-    return testResults.find(r => r.service === service);
+    return testResults.find((r) => r.service === service);
   }
 </script>
 
@@ -432,7 +481,11 @@
     <div class="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
       <div class="flex items-center gap-2 text-green-600">
         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          <path
+            fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+            clip-rule="evenodd"
+          />
         </svg>
         {successMessage}
       </div>
@@ -442,7 +495,9 @@
   {#if loading}
     <div class="flex items-center justify-center py-12">
       <div class="flex items-center gap-2 text-muted-foreground">
-        <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div
+          class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"
+        ></div>
         Loading configuration...
       </div>
     </div>
@@ -464,7 +519,10 @@
           <div>
             <div class="space-y-4">
               <div>
-                <label for="jellyfin-url" class="block text-sm font-medium mb-2">
+                <label
+                  for="jellyfin-url"
+                  class="block text-sm font-medium mb-2"
+                >
                   Server URL
                 </label>
                 <input
@@ -478,7 +536,10 @@
               </div>
 
               <div>
-                <label for="jellyfin-api-key" class="block text-sm font-medium mb-2">
+                <label
+                  for="jellyfin-api-key"
+                  class="block text-sm font-medium mb-2"
+                >
                   API Key
                 </label>
                 <input
@@ -490,7 +551,11 @@
                   on:input={clearMessages}
                 />
                 <p class="text-xs text-muted-foreground mt-1">
-                  Current: {config.jellyfin.apiKey ? (config.jellyfin.apiKey.includes('***') ? 'Configured (saved)' : config.jellyfin.apiKey) : 'Not configured'}
+                  Current: {config.jellyfin.apiKey
+                    ? config.jellyfin.apiKey.includes('***')
+                      ? 'Configured (saved)'
+                      : config.jellyfin.apiKey
+                    : 'Not configured'}
                 </p>
               </div>
 
@@ -498,7 +563,9 @@
                 type="button"
                 class="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-50"
                 on:click={() => testConnection('jellyfin')}
-                disabled={testing || !jellyfinUrl.trim() || !jellyfinApiKey.trim()}
+                disabled={testing ||
+                  !jellyfinUrl.trim() ||
+                  !jellyfinApiKey.trim()}
               >
                 {testing ? 'Testing...' : 'Test Connection'}
               </button>
@@ -509,9 +576,9 @@
             <h3 class="font-medium mb-2">Current Status</h3>
             <div class="text-sm space-y-2">
               <div>
-                Status: {config.jellyfin.connected ?
-                  '✅ Connected' :
-                  '❌ Not connected'}
+                Status: {config.jellyfin.connected
+                  ? '✅ Connected'
+                  : '❌ Not connected'}
               </div>
               {#if config.jellyfin.serverName}
                 <div>Server: {config.jellyfin.serverName}</div>
@@ -523,8 +590,19 @@
             </div>
 
             {#if getTestResult('jellyfin')}
-              <div class="mt-4 p-3 rounded border {getTestResult('jellyfin')?.status === 'success' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}">
-                <div class="flex items-center gap-2 text-sm {getTestResult('jellyfin')?.status === 'success' ? 'text-green-600' : 'text-red-600'}">
+              <div
+                class="mt-4 p-3 rounded border {getTestResult('jellyfin')
+                  ?.status === 'success'
+                  ? 'bg-green-500/10 border-green-500/20'
+                  : 'bg-red-500/10 border-red-500/20'}"
+              >
+                <div
+                  class="flex items-center gap-2 text-sm {getTestResult(
+                    'jellyfin'
+                  )?.status === 'success'
+                    ? 'text-green-600'
+                    : 'text-red-600'}"
+                >
                   <StatusIndicator
                     type="provider"
                     status={getTestResult('jellyfin')?.status || 'error'}
@@ -556,7 +634,10 @@
           <div>
             <div class="space-y-4">
               <div>
-                <label for="tmdb-api-key" class="block text-sm font-medium mb-2">
+                <label
+                  for="tmdb-api-key"
+                  class="block text-sm font-medium mb-2"
+                >
                   API Key
                 </label>
                 <input
@@ -568,7 +649,11 @@
                   on:input={clearMessages}
                 />
                 <p class="text-xs text-muted-foreground mt-1">
-                  Get your API key from <a href="https://www.themoviedb.org/settings/api" target="_blank" class="text-primary hover:underline">TMDb API settings</a>
+                  Get your API key from <a
+                    href="https://www.themoviedb.org/settings/api"
+                    target="_blank"
+                    class="text-primary hover:underline">TMDb API settings</a
+                  >
                 </p>
               </div>
 
@@ -587,18 +672,29 @@
             <h3 class="font-medium mb-2">Current Status</h3>
             <div class="text-sm space-y-2">
               <div>
-                Status: {config.tmdb.configured ?
-                  '✅ Configured' :
-                  '⚠️ Not configured'}
+                Status: {config.tmdb.configured
+                  ? '✅ Configured'
+                  : '⚠️ Not configured'}
               </div>
               <div class="text-muted-foreground">
-                TMDb provides additional metadata and artwork for movies and TV shows.
+                TMDb provides additional metadata and artwork for movies and TV
+                shows.
               </div>
             </div>
 
             {#if getTestResult('tmdb')}
-              <div class="mt-4 p-3 rounded border {getTestResult('tmdb')?.status === 'success' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}">
-                <div class="flex items-center gap-2 text-sm {getTestResult('tmdb')?.status === 'success' ? 'text-green-600' : 'text-red-600'}">
+              <div
+                class="mt-4 p-3 rounded border {getTestResult('tmdb')
+                  ?.status === 'success'
+                  ? 'bg-green-500/10 border-green-500/20'
+                  : 'bg-red-500/10 border-red-500/20'}"
+              >
+                <div
+                  class="flex items-center gap-2 text-sm {getTestResult('tmdb')
+                    ?.status === 'success'
+                    ? 'text-green-600'
+                    : 'text-red-600'}"
+                >
                   <StatusIndicator
                     type="provider"
                     status={getTestResult('tmdb')?.status || 'error'}
@@ -632,8 +728,10 @@
             <h3 class="font-medium mb-2">Endpoints</h3>
             <div class="text-sm space-y-2">
               <div>Frontend: <code>http://localhost:3000/</code></div>
-              <div>Backend API: <code>http://localhost:{config.backend.port}/api</code></div>
-              <div>Health Check: <code>http://localhost:{config.backend.port}/api/health</code></div>
+              <div>Backend API: <code>http://localhost:3000/api</code></div>
+              <div>
+                Health Check: <code>http://localhost:3000/api/health</code>
+              </div>
             </div>
           </div>
         </div>
@@ -644,7 +742,11 @@
         <div class="flex items-center gap-3 mb-4">
           <StatusIndicator
             type="provider"
-            status={syncing ? 'pending' : config.jellyfin.connected ? 'success' : 'error'}
+            status={syncing
+              ? 'pending'
+              : config.jellyfin.connected
+                ? 'success'
+                : 'error'}
             size="md"
             showLabel={false}
           />
@@ -655,7 +757,8 @@
           <div>
             <div class="space-y-4">
               <p class="text-sm text-muted-foreground">
-                Sync your Jellyfin libraries to metafin for metadata analysis and management.
+                Sync your Jellyfin libraries to metafin for metadata analysis
+                and management.
               </p>
 
               <div class="flex gap-3">
@@ -689,8 +792,13 @@
               </div>
 
               <div class="text-xs text-muted-foreground">
-                <div><strong>Start Sync:</strong> Incremental sync of new/changed items</div>
-                <div><strong>Full Sync:</strong> Complete resync of all libraries and items</div>
+                <div>
+                  <strong>Start Sync:</strong> Incremental sync of new/changed items
+                </div>
+                <div>
+                  <strong>Full Sync:</strong> Complete resync of all libraries and
+                  items
+                </div>
               </div>
             </div>
           </div>
@@ -715,12 +823,20 @@
                   {#if syncProgress.currentLibrary}
                     <div>Library: {syncProgress.currentLibrary}</div>
                   {/if}
-                  <div>Items: {syncProgress.processedItems} / {syncProgress.totalItems}</div>
+                  <div>
+                    Items: {syncProgress.processedItems} / {syncProgress.totalItems}
+                  </div>
                   {#if syncProgress.failedItems > 0}
-                    <div class="text-destructive">Failed: {syncProgress.failedItems}</div>
+                    <div class="text-destructive">
+                      Failed: {syncProgress.failedItems}
+                    </div>
                   {/if}
                   {#if syncProgress.estimatedEndTime}
-                    <div>ETA: {new Date(syncProgress.estimatedEndTime).toLocaleTimeString()}</div>
+                    <div>
+                      ETA: {new Date(
+                        syncProgress.estimatedEndTime
+                      ).toLocaleTimeString()}
+                    </div>
                   {/if}
                 </div>
               </div>
@@ -740,7 +856,10 @@
       <!-- Save Configuration -->
       <div class="flex items-center justify-between border-t pt-6">
         <div class="text-sm text-muted-foreground">
-          <p><strong>Note:</strong> Configuration changes are saved to the backend configuration file.</p>
+          <p>
+            <strong>Note:</strong> Configuration changes are saved to the backend
+            configuration file.
+          </p>
           <p>Environment variables will override saved configuration values.</p>
         </div>
 

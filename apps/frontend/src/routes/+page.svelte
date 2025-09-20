@@ -323,23 +323,24 @@
       <h3 class="text-foreground font-medium">Key Features</h3>
       <ul>
         <li>
-          <strong>Provider Integration:</strong> Search and match content using TVMaze,
-          Wikidata, and TMDb
+          <strong class="text-foreground">Provider Integration:</strong> Search and
+          match content using TVMaze, Wikidata, and TMDb
         </li>
         <li>
-          <strong>Bulk Operations:</strong> Apply metadata changes to multiple items
-          with preview
+          <strong class="text-foreground">Bulk Operations:</strong> Apply metadata
+          changes to multiple items with preview
         </li>
         <li>
-          <strong>Smart Collections:</strong> Create rule-based collections that
-          update automatically
+          <strong class="text-foreground">Smart Collections:</strong> Create rule-based
+          collections that update automatically
         </li>
         <li>
-          <strong>Artwork Management:</strong> Download and apply high-quality artwork
+          <strong class="text-foreground">Artwork Management:</strong> Download and
+          apply high-quality artwork
         </li>
         <li>
-          <strong>Misclassification Detection:</strong> Identify and resolve incorrectly
-          categorised content
+          <strong class="text-foreground">Misclassification Detection:</strong> Identify
+          and resolve incorrectly categorised content
         </li>
       </ul>
 

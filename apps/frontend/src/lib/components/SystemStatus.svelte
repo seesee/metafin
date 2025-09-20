@@ -62,8 +62,8 @@
         };
       };
     };
-    error: Record<string, any>;
-    details: Record<string, any>;
+    error: Record<string, unknown>;
+    details: Record<string, unknown>;
   }
 
   interface ProviderConfig {
@@ -103,7 +103,7 @@
       // Check main health endpoint
       const [health, providers] = await Promise.all([
         apiClient.getHealth(),
-        apiClient.getProviderConfigs()
+        apiClient.getProviderConfigs(),
       ]);
 
       responseTime = Date.now() - startTime;
@@ -111,7 +111,10 @@
       providerConfigs = providers;
       lastUpdate = new Date();
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error during health check';
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : 'Unknown error during health check';
       errors.push(errorMsg);
       console.error('System health check failed:', error);
       responseTime = Date.now() - startTime;
@@ -148,8 +151,10 @@
     if (hasJellyfinError || hasDatabaseError || hasMetafinError) return 'error';
 
     // Check if required configuration is missing
-    const hasProviders = providerConfigs.length > 0 && providerConfigs.some(p => p.enabled);
-    const hasJellyfinConfig = healthData.info.metafin.info.configuration.hasJellyfinConfig;
+    const hasProviders =
+      providerConfigs.length > 0 && providerConfigs.some((p) => p.enabled);
+    const hasJellyfinConfig =
+      healthData.info.metafin.info.configuration.hasJellyfinConfig;
 
     if (!hasJellyfinConfig) return 'error'; // Jellyfin config is required
     if (!hasProviders) return 'warning'; // Providers are strongly recommended
@@ -164,13 +169,15 @@
     return 'success';
   }
 
-  function getStatusFromHealth(status: string): 'success' | 'warning' | 'error' {
+  function getStatusFromHealth(
+    status: string
+  ): 'success' | 'warning' | 'error' {
     return status === 'up' ? 'success' : 'error';
   }
 
   function getProviderStatus(): 'success' | 'warning' | 'error' {
     if (providerConfigs.length === 0) return 'error';
-    const enabledProviders = providerConfigs.filter(p => p.enabled);
+    const enabledProviders = providerConfigs.filter((p) => p.enabled);
     if (enabledProviders.length === 0) return 'error';
     if (enabledProviders.length < providerConfigs.length) return 'warning';
     return 'success';
@@ -204,7 +211,7 @@
       <button
         type="button"
         class="px-2 py-1 text-xs border border-border rounded hover:bg-accent transition-colors"
-        on:click={() => showDetails = !showDetails}
+        on:click={() => (showDetails = !showDetails)}
       >
         {showDetails ? 'Hide' : 'Show'} Details
       </button>
@@ -222,10 +229,24 @@
     />
   {/each}
 
+  <!-- Success Message -->
+  {#if !loading && healthData && errors.length === 0 && getOverallStatus() === 'success'}
+    <div
+      class="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/30 rounded-lg mb-4"
+    >
+      <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+      <span class="text-green-700 dark:text-green-300 font-medium"
+        >All systems operational</span
+      >
+    </div>
+  {/if}
+
   {#if loading}
     <div class="flex items-center justify-center py-8">
       <div class="flex items-center gap-2 text-muted-foreground">
-        <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div
+          class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"
+        ></div>
         Checking system health...
       </div>
     </div>
@@ -271,7 +292,7 @@
           type="provider"
           status={getProviderStatus()}
           label="Providers"
-          count={providerConfigs.filter(p => p.enabled).length}
+          count={providerConfigs.filter((p) => p.enabled).length}
           size="sm"
           showLabel={true}
         />
@@ -281,19 +302,27 @@
     <!-- Statistics -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-sm mb-4">
       <div class="p-2 bg-muted rounded">
-        <div class="font-bold text-lg">{healthData.info.database.info.stats.libraryCount}</div>
+        <div class="font-bold text-lg">
+          {healthData.info.database.info.stats.libraryCount}
+        </div>
         <div class="text-muted-foreground">Libraries</div>
       </div>
       <div class="p-2 bg-muted rounded">
-        <div class="font-bold text-lg">{healthData.info.database.info.stats.itemCount.toLocaleString()}</div>
+        <div class="font-bold text-lg">
+          {healthData.info.database.info.stats.itemCount.toLocaleString()}
+        </div>
         <div class="text-muted-foreground">Total Items</div>
       </div>
       <div class="p-2 bg-muted rounded">
-        <div class="font-bold text-lg">{healthData.info.database.info.stats.collectionCount.toLocaleString()}</div>
+        <div class="font-bold text-lg">
+          {healthData.info.database.info.stats.collectionCount.toLocaleString()}
+        </div>
         <div class="text-muted-foreground">Collections</div>
       </div>
       <div class="p-2 bg-muted rounded">
-        <div class="font-bold text-lg">{formatUptime(healthData.info.metafin.info.uptime)}</div>
+        <div class="font-bold text-lg">
+          {formatUptime(healthData.info.metafin.info.uptime)}
+        </div>
         <div class="text-muted-foreground">Uptime</div>
       </div>
     </div>
@@ -316,10 +345,20 @@
             <div>Version: {healthData.info.metafin.info.version}</div>
             <div>Environment: {healthData.info.metafin.info.environment}</div>
             <div>Response Time: {formatResponseTime(responseTime)}</div>
-            <div>Port: {healthData.info.metafin.info.endpoints.backend.port}</div>
+            <div>
+              Port: {healthData.info.metafin.info.endpoints.backend.port}
+            </div>
             <div>Base Path: {healthData.info.metafin.info.basePath}</div>
-            <div>Node: {healthData.info.metafin.info.node.version} ({healthData.info.metafin.info.node.platform}/{healthData.info.metafin.info.node.arch})</div>
-            <div>Started: {new Date(healthData.info.metafin.info.startTime).toLocaleString('en-GB')}</div>
+            <div>
+              Node: {healthData.info.metafin.info.node.version} ({healthData
+                .info.metafin.info.node.platform}/{healthData.info.metafin.info
+                .node.arch})
+            </div>
+            <div>
+              Started: {new Date(
+                healthData.info.metafin.info.startTime
+              ).toLocaleString('en-GB')}
+            </div>
           </div>
         </div>
 
@@ -335,13 +374,24 @@
             Jellyfin Connection
           </h4>
           <div class="text-sm space-y-1">
-            <div>Status: {healthData.info.jellyfin.status === 'up' ? '✅ Connected' : '❌ Disconnected'}</div>
-            <div>Server: {healthData.info.jellyfin.info.serverName || 'Unknown'}</div>
+            <div>
+              Status: {healthData.info.jellyfin.status === 'up'
+                ? '✅ Connected'
+                : '❌ Disconnected'}
+            </div>
+            <div>
+              Server: {healthData.info.jellyfin.info.serverName || 'Unknown'}
+            </div>
             <div>Version: {healthData.info.jellyfin.info.version}</div>
-            <div>URL: {healthData.info.metafin.info.endpoints.jellyfin.url}</div>
-            <div>API Key: {healthData.info.metafin.info.endpoints.jellyfin.apiKeyConfigured ?
-              `Configured (${healthData.info.metafin.info.endpoints.jellyfin.apiKeyPreview})` :
-              '❌ Not configured'}</div>
+            <div>
+              URL: {healthData.info.metafin.info.endpoints.jellyfin.url}
+            </div>
+            <div>
+              API Key: {healthData.info.metafin.info.endpoints.jellyfin
+                .apiKeyConfigured
+                ? `Configured (${healthData.info.metafin.info.endpoints.jellyfin.apiKeyPreview})`
+                : '❌ Not configured'}
+            </div>
           </div>
         </div>
 
@@ -357,10 +407,20 @@
             Database Status
           </h4>
           <div class="text-sm space-y-1">
-            <div>Status: {healthData.info.database.status === 'up' ? '✅ Connected' : '❌ Disconnected'}</div>
-            <div>Libraries: {healthData.info.database.info.stats.libraryCount}</div>
-            <div>Items: {healthData.info.database.info.stats.itemCount.toLocaleString()}</div>
-            <div>Collections: {healthData.info.database.info.stats.collectionCount}</div>
+            <div>
+              Status: {healthData.info.database.status === 'up'
+                ? '✅ Connected'
+                : '❌ Disconnected'}
+            </div>
+            <div>
+              Libraries: {healthData.info.database.info.stats.libraryCount}
+            </div>
+            <div>
+              Items: {healthData.info.database.info.stats.itemCount.toLocaleString()}
+            </div>
+            <div>
+              Collections: {healthData.info.database.info.stats.collectionCount}
+            </div>
             <div>Jobs: {healthData.info.database.info.stats.jobCount}</div>
           </div>
         </div>
@@ -377,9 +437,15 @@
             Metadata Providers
           </h4>
           <div class="text-sm space-y-2">
-            <div>Total: {providerConfigs.length} configured, {providerConfigs.filter(p => p.enabled).length} enabled</div>
+            <div>
+              Total: {providerConfigs.length} configured, {providerConfigs.filter(
+                (p) => p.enabled
+              ).length} enabled
+            </div>
             {#each providerConfigs as provider}
-              <div class="flex items-center justify-between p-2 bg-muted/50 rounded">
+              <div
+                class="flex items-center justify-between p-2 bg-muted/50 rounded"
+              >
                 <div class="flex items-center gap-2">
                   <StatusIndicator
                     type="provider"
@@ -392,7 +458,7 @@
                 <div class="text-xs text-muted-foreground">
                   {provider.enabled ? 'Enabled' : 'Disabled'} •
                   {provider.rateLimit}/sec •
-                  {provider.timeout/1000}s timeout
+                  {provider.timeout / 1000}s timeout
                 </div>
               </div>
             {/each}
@@ -403,18 +469,29 @@
         <div class="p-3 border border-border rounded">
           <h4 class="font-medium mb-2">Configuration</h4>
           <div class="text-sm space-y-1">
-            <div>Jellyfin Config: {healthData.info.metafin.info.configuration.hasJellyfinConfig ? '✅ Configured' : '❌ Missing'}</div>
-            <div>TMDb Config: {healthData.info.metafin.info.configuration.hasTmdbConfig ? '✅ Configured' : '❌ Not configured'}</div>
-            <div>Default Locale: {healthData.info.metafin.info.configuration.defaultLocale}</div>
+            <div>
+              Jellyfin Config: {healthData.info.metafin.info.configuration
+                .hasJellyfinConfig
+                ? '✅ Configured'
+                : '❌ Missing'}
+            </div>
+            <div>
+              TMDb Config: {healthData.info.metafin.info.configuration
+                .hasTmdbConfig
+                ? '✅ Configured'
+                : '❌ Not configured'}
+            </div>
+            <div>
+              Default Locale: {healthData.info.metafin.info.configuration
+                .defaultLocale}
+            </div>
           </div>
         </div>
       </div>
     {/if}
   {:else}
     <div class="text-center py-8">
-      <div class="text-muted-foreground">
-        Unable to load system status
-      </div>
+      <div class="text-muted-foreground">Unable to load system status</div>
     </div>
   {/if}
 </div>
