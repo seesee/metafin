@@ -1,0 +1,15 @@
+/Users/chris/github/metafin/jellyfin-plugin-metafin/bin/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.deps.json
+/Users/chris/github/metafin/jellyfin-plugin-metafin/bin/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.dll
+/Users/chris/github/metafin/jellyfin-plugin-metafin/bin/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.pdb
+/Users/chris/github/metafin/jellyfin-plugin-metafin/bin/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.xml
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.csproj.AssemblyReference.cache
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.GeneratedMSBuildEditorConfig.editorconfig
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.AssemblyInfoInputs.cache
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.AssemblyInfo.cs
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.csproj.CoreCompileInputs.cache
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.sourcelink.json
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.dll
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/refint/Jellyfin.Plugin.Metafin.dll
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.xml
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/Jellyfin.Plugin.Metafin.pdb
+/Users/chris/github/metafin/jellyfin-plugin-metafin/obj/Release/net8.0/linux-arm64/ref/Jellyfin.Plugin.Metafin.dll

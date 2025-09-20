@@ -1,0 +1,151 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Jellyfin.Plugin.Metafin</name>
+    </assembly>
+    <members>
+        <member name="T:Jellyfin.Plugin.Metafin.Api.MetadataController">
+            <summary>
+            Metadata update controller.
+            </summary>
+        </member>
+        <member name="M:Jellyfin.Plugin.Metafin.Api.MetadataController.#ctor(MediaBrowser.Controller.Library.ILibraryManager,MediaBrowser.Controller.Providers.IProviderManager,Microsoft.Extensions.Logging.ILogger{Jellyfin.Plugin.Metafin.Api.MetadataController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:Jellyfin.Plugin.Metafin.Api.MetadataController"/> class.
+            </summary>
+            <param name="libraryManager">Instance of the <see cref="T:MediaBrowser.Controller.Library.ILibraryManager"/> interface.</param>
+            <param name="providerManager">Instance of the <see cref="T:MediaBrowser.Controller.Providers.IProviderManager"/> interface.</param>
+            <param name="logger">Instance of the <see cref="T:Microsoft.Extensions.Logging.ILogger`1"/> interface.</param>
+        </member>
+        <member name="M:Jellyfin.Plugin.Metafin.Api.MetadataController.UpdateMetadata(System.String,Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest)">
+            <summary>
+            Updates metadata for a specific item.
+            </summary>
+            <param name="itemId">The ID of the item to update.</param>
+            <param name="updateRequest">The metadata update request.</param>
+            <returns>Success status.</returns>
+        </member>
+        <member name="M:Jellyfin.Plugin.Metafin.Api.MetadataController.GetStatus">
+            <summary>
+            Gets the current status of the plugin.
+            </summary>
+            <returns>Plugin status information.</returns>
+        </member>
+        <member name="T:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest">
+            <summary>
+            Metadata update request model.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.ApiKey">
+            <summary>
+            Gets or sets the API key for authentication.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.Name">
+            <summary>
+            Gets or sets the item name.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.Overview">
+            <summary>
+            Gets or sets the item overview.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.ProductionYear">
+            <summary>
+            Gets or sets the production year.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.OfficialRating">
+            <summary>
+            Gets or sets the official rating.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.CommunityRating">
+            <summary>
+            Gets or sets the community rating.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.PremiereDate">
+            <summary>
+            Gets or sets the premiere date.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.EndDate">
+            <summary>
+            Gets or sets the end date.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.Genres">
+            <summary>
+            Gets or sets the genres.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.Tags">
+            <summary>
+            Gets or sets the tags.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.Studios">
+            <summary>
+            Gets or sets the studios.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.ProviderIds">
+            <summary>
+            Gets or sets the provider IDs.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Api.MetadataUpdateRequest.RefreshAfterUpdate">
+            <summary>
+            Gets or sets a value indicating whether to refresh metadata after update.
+            </summary>
+        </member>
+        <member name="T:Jellyfin.Plugin.Metafin.Configuration.PluginConfiguration">
+            <summary>
+            Plugin configuration.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Configuration.PluginConfiguration.ApiKey">
+            <summary>
+            Gets or sets the API key for authentication with Metafin.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Configuration.PluginConfiguration.IsEnabled">
+            <summary>
+            Gets or sets a value indicating whether the plugin is enabled.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Configuration.PluginConfiguration.MetafinUrl">
+            <summary>
+            Gets or sets the Metafin server URL.
+            </summary>
+        </member>
+        <member name="T:Jellyfin.Plugin.Metafin.Plugin">
+            <summary>
+            The main plugin class for Metafin integration.
+            </summary>
+        </member>
+        <member name="M:Jellyfin.Plugin.Metafin.Plugin.#ctor(MediaBrowser.Common.Configuration.IApplicationPaths,MediaBrowser.Model.Serialization.IXmlSerializer)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Jellyfin.Plugin.Metafin.Plugin"/> class.
+            </summary>
+            <param name="applicationPaths">Instance of the <see cref="T:MediaBrowser.Common.Configuration.IApplicationPaths"/> interface.</param>
+            <param name="xmlSerializer">Instance of the <see cref="T:MediaBrowser.Model.Serialization.IXmlSerializer"/> interface.</param>
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Plugin.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Plugin.Id">
+            <inheritdoc />
+        </member>
+        <member name="P:Jellyfin.Plugin.Metafin.Plugin.Instance">
+            <summary>
+            Gets the current plugin instance.
+            </summary>
+        </member>
+        <member name="M:Jellyfin.Plugin.Metafin.Plugin.GetPages">
+            <inheritdoc />
+        </member>
+    </members>
+</doc>

@@ -217,6 +217,170 @@ export class JellyfinService {
   }
 
   // Metadata write operations
+  /**
+   * Convert date string to Jellyfin's expected yyyy-MM-dd format
+   */
+  private formatDateForJellyfin(dateString?: string): string | undefined {
+    if (!dateString) return undefined;
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return undefined;
+
+      // Return only the date part in yyyy-MM-dd format
+      return date.toISOString().split('T')[0];
+    } catch (error) {
+      this.logger.warn(`Failed to parse date string: ${dateString}`, error instanceof Error ? error.message : String(error));
+      return undefined;
+    }
+  }
+
+  /**
+   * Alternative approach: Use the Metafin plugin for reliable metadata updates
+   * This bypasses Jellyfin's problematic REST API by using our custom plugin
+   */
+  async writeMetadataViaPlugin(
+    itemId: string,
+    metadata: {
+      name?: string;
+      overview?: string;
+      genres?: string[];
+      tags?: string[];
+      people?: Array<{ name: string; role?: string; type: string }>;
+      studios?: string[];
+      providerIds?: Record<string, string>;
+      premiereDate?: string;
+      endDate?: string;
+      productionYear?: number;
+      officialRating?: string;
+      communityRating?: number;
+    }
+  ): Promise<void> {
+    this.logger.log(
+      `Updating metadata for item ${itemId} via Metafin plugin`,
+      'JellyfinService'
+    );
+
+    try {
+      // Prepare the request payload for the plugin
+      const pluginPayload = {
+        apiKey: this.config.requireJellyfinConfig().apiKey, // Use same API key
+        name: metadata.name,
+        overview: metadata.overview,
+        productionYear: metadata.productionYear,
+        officialRating: metadata.officialRating,
+        communityRating: metadata.communityRating,
+        premiereDate: metadata.premiereDate,
+        endDate: metadata.endDate,
+        genres: metadata.genres,
+        tags: metadata.tags,
+        studios: metadata.studios,
+        providerIds: metadata.providerIds,
+        refreshAfterUpdate: true
+      };
+
+      // Call the plugin's metadata endpoint
+      const response = await this.request<any>(`/metafin/items/${itemId}/metadata`, {
+        method: 'POST',
+        body: pluginPayload,
+      });
+
+      this.logger.log(
+        `Successfully updated metadata via plugin for item ${itemId}`,
+        'JellyfinService'
+      );
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Plugin metadata update failed for item ${itemId}`,
+        error instanceof Error ? error.message : String(error),
+        'JellyfinService'
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Fallback approach: Write metadata to .nfo file and trigger refresh
+   * This is used when the plugin is not available
+   */
+  async writeMetadataViaFile(
+    itemId: string,
+    metadata: {
+      name?: string;
+      overview?: string;
+      genres?: string[];
+      tags?: string[];
+      people?: Array<{ name: string; role?: string; type: string }>;
+      studios?: string[];
+      providerIds?: Record<string, string>;
+      premiereDate?: string;
+      endDate?: string;
+      productionYear?: number;
+      officialRating?: string;
+      communityRating?: number;
+    }
+  ): Promise<void> {
+    this.logger.log(
+      `Attempting metadata update for item ${itemId} via fallback methods`,
+      'JellyfinService'
+    );
+
+    // First try the plugin approach
+    try {
+      await this.writeMetadataViaPlugin(itemId, metadata);
+      return; // Success - exit early
+    } catch (pluginError) {
+      this.logger.warn(
+        `Plugin metadata update failed, falling back to refresh approach for item ${itemId}`,
+        pluginError instanceof Error ? pluginError.message : String(pluginError),
+        'JellyfinService'
+      );
+    }
+
+    // Fallback to the old hybrid approach
+    try {
+      await this.updateItemMetadata(itemId, metadata);
+
+      // If successful, trigger a refresh to ensure consistency
+      await this.refreshMetadata(itemId, {
+        metadataRefreshMode: 'Default',
+        imageRefreshMode: 'None',
+        replaceAllMetadata: false,
+        replaceAllImages: false,
+      });
+
+      this.logger.log(
+        `Metadata updated via fallback approach for item ${itemId}`,
+        'JellyfinService'
+      );
+    } catch (error) {
+      this.logger.warn(
+        `All metadata update methods failed for item ${itemId}`,
+        error instanceof Error ? error.message : String(error),
+        'JellyfinService'
+      );
+
+      // Last resort: Just trigger a full refresh
+      await this.refreshMetadata(itemId, {
+        metadataRefreshMode: 'FullRefresh',
+        imageRefreshMode: 'None',
+        replaceAllMetadata: true,
+        replaceAllImages: false,
+      });
+
+      // Re-throw the original error so caller knows the update didn't work
+      throw error;
+    }
+  }
+
+  private generateNfoContent(item: any, metadata: any): string {
+    // This would generate NFO XML content
+    // For now, this is a placeholder since we can't write files directly
+    return `<!-- NFO content for ${item.Name} -->`;
+  }
+
   async updateItemMetadata(
     itemId: string,
     metadata: {
@@ -234,33 +398,52 @@ export class JellyfinService {
       communityRating?: number;
     }
   ): Promise<void> {
-    const item = await this.getItem(itemId);
+    // Build partial update object with only the fields we want to change
+    const updatePayload: Record<string, unknown> = {};
 
-    const updatedItem = {
-      ...item,
-      Name: metadata.name ?? item.name,
-      Overview: metadata.overview ?? item.overview,
-      Genres: metadata.genres ?? item.genres,
-      Tags: metadata.tags ?? item.tags,
-      People:
-        metadata.people?.map((p) => ({
-          Name: p.name,
-          Role: p.role,
-          Type: p.type,
-        })) ?? item.people,
-      Studios: metadata.studios?.map((s) => ({ Name: s })) ?? item.studios,
-      ProviderIds: { ...item.providerIds, ...metadata.providerIds },
-      PremiereDate: metadata.premiereDate ?? item.premiereDate,
-      EndDate: metadata.endDate ?? item.endDate,
-      ProductionYear: metadata.productionYear ?? item.year,
-      OfficialRating: metadata.officialRating,
-      CommunityRating: metadata.communityRating,
-    };
+    if (metadata.name !== undefined) {
+      updatePayload.Name = metadata.name;
+    }
+    if (metadata.overview !== undefined) {
+      updatePayload.Overview = metadata.overview;
+    }
+    if (metadata.genres !== undefined) {
+      updatePayload.Genres = metadata.genres;
+    }
+    if (metadata.tags !== undefined) {
+      updatePayload.Tags = metadata.tags;
+    }
+    if (metadata.people !== undefined) {
+      updatePayload.People = metadata.people.map((p) => ({
+        Name: p.name,
+        Role: p.role,
+        Type: p.type,
+      }));
+    }
+    if (metadata.studios !== undefined) {
+      updatePayload.Studios = metadata.studios.map((s) => ({ Name: s }));
+    }
+    if (metadata.providerIds !== undefined) {
+      updatePayload.ProviderIds = metadata.providerIds;
+    }
+    if (metadata.premiereDate !== undefined) {
+      updatePayload.PremiereDate = this.formatDateForJellyfin(metadata.premiereDate);
+    }
+    if (metadata.endDate !== undefined) {
+      updatePayload.EndDate = this.formatDateForJellyfin(metadata.endDate);
+    }
+    if (metadata.productionYear !== undefined) {
+      updatePayload.ProductionYear = metadata.productionYear;
+    }
+    if (metadata.officialRating !== undefined) {
+      updatePayload.OfficialRating = metadata.officialRating;
+    }
+    if (metadata.communityRating !== undefined) {
+      updatePayload.CommunityRating = metadata.communityRating;
+    }
 
-    await this.request(`/Items/${itemId}`, {
-      method: 'POST',
-      body: updatedItem,
-    });
+    // Use the existing updateItem method for the actual API call
+    await this.updateItem(itemId, updatePayload);
   }
 
   // Artwork operations
@@ -480,10 +663,29 @@ export class JellyfinService {
           return this.versionGreaterThan(version, '10.8.0');
         case 'trickplay':
           return this.versionGreaterThan(version, '10.9.0');
+        case 'metafin-plugin':
+          return await this.checkMetafinPluginAvailable();
         default:
           return true;
       }
     } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if the Metafin plugin is installed and available
+   */
+  async checkMetafinPluginAvailable(): Promise<boolean> {
+    try {
+      const response = await this.request<any>('/metafin/status');
+      return response.status === 200 && response.data?.Status === 'Active';
+    } catch (error) {
+      this.logger.debug(
+        'Metafin plugin not available',
+        error instanceof Error ? error.message : String(error),
+        'JellyfinService'
+      );
       return false;
     }
   }

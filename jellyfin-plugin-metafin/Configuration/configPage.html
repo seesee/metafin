@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Metafin</title>
+</head>
+<body>
+    <div id="MetafinConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox,emby-select">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="MetafinConfigForm">
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="IsEnabled">Enable Metafin Plugin:</label>
+                        <input is="emby-checkbox" type="checkbox" id="IsEnabled" name="IsEnabled" />
+                        <div class="fieldDescription">Enable or disable the Metafin plugin</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="MetafinUrl">Metafin Server URL:</label>
+                        <input is="emby-input" type="text" id="MetafinUrl" name="MetafinUrl" />
+                        <div class="fieldDescription">URL of your Metafin server (e.g., http://localhost:8080)</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ApiKey">API Key:</label>
+                        <input is="emby-input" type="password" id="ApiKey" name="ApiKey" />
+                        <div class="fieldDescription">API key for authentication with Metafin</div>
+                    </div>
+                    <br />
+                    <button is="emby-button" type="submit" class="raised button-submit block">
+                        <span>Save</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        <script type="text/javascript">
+            var MetafinConfigPage = {
+                pluginUniqueId: "12345678-1234-1234-1234-123456789012",
+
+                loadConfiguration: function () {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(MetafinConfigPage.pluginUniqueId).then(function (config) {
+                        document.querySelector('#IsEnabled').checked = config.IsEnabled || false;
+                        document.querySelector('#MetafinUrl').value = config.MetafinUrl || 'http://localhost:8080';
+                        document.querySelector('#ApiKey').value = config.ApiKey || '';
+                        Dashboard.hideLoadingMsg();
+                    });
+                },
+
+                saveConfiguration: function () {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(MetafinConfigPage.pluginUniqueId).then(function (config) {
+                        config.IsEnabled = document.querySelector('#IsEnabled').checked;
+                        config.MetafinUrl = document.querySelector('#MetafinUrl').value;
+                        config.ApiKey = document.querySelector('#ApiKey').value;
+
+                        ApiClient.updatePluginConfiguration(MetafinConfigPage.pluginUniqueId, config).then(function (result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+                }
+            };
+
+            document.querySelector('#MetafinConfigForm').addEventListener('submit', function (e) {
+                MetafinConfigPage.saveConfiguration();
+                e.preventDefault();
+                return false;
+            });
+
+            document.addEventListener('viewshow', function () {
+                if (window.location.hash.toLowerCase().indexOf('configurationpage?name=metafin') !== -1) {
+                    MetafinConfigPage.loadConfiguration();
+                }
+            });
+        </script>
+    </div>
+</body>
+</html>
