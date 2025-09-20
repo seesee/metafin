@@ -280,7 +280,7 @@ export class JellyfinService {
       };
 
       // Call the plugin's metadata endpoint
-      const response = await this.request<any>(`/metafin/items/${itemId}/metadata`, {
+      const response = await this.request<{ Success: boolean; Message: string }>(`/metafin/items/${itemId}/metadata`, {
         method: 'POST',
         body: pluginPayload,
       });
@@ -375,7 +375,7 @@ export class JellyfinService {
     }
   }
 
-  private generateNfoContent(item: any, metadata: any): string {
+  private generateNfoContent(item: unknown, _metadata: unknown): string {
     // This would generate NFO XML content
     // For now, this is a placeholder since we can't write files directly
     return `<!-- NFO content for ${item.Name} -->`;
@@ -678,7 +678,7 @@ export class JellyfinService {
    */
   async checkMetafinPluginAvailable(): Promise<boolean> {
     try {
-      const response = await this.request<any>('/metafin/status');
+      const response = await this.request<{ Status: string }>('/metafin/status');
       return response.status === 200 && response.data?.Status === 'Active';
     } catch (error) {
       this.logger.debug(

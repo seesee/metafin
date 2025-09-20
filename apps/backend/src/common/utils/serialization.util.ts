@@ -10,6 +10,18 @@
  * @returns The object with BigInt values converted to strings
  */
 export function transformBigIntForSerialization<T>(obj: T): T {
+  return transformBigIntForSerializationExcluding(obj, new Set());
+}
+
+/**
+ * Transform BigInt values to strings for JSON serialization, excluding specific fields.
+ * Recursively processes objects and arrays to handle nested BigInt values.
+ *
+ * @param obj The object to transform
+ * @param excludeFields Set of field names to exclude from transformation
+ * @returns The object with BigInt values converted to strings
+ */
+export function transformBigIntForSerializationExcluding<T>(obj: T, excludeFields: Set<string>): T {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -21,7 +33,7 @@ export function transformBigIntForSerialization<T>(obj: T): T {
 
   // Handle arrays
   if (Array.isArray(obj)) {
-    return obj.map(item => transformBigIntForSerialization(item)) as unknown as T;
+    return obj.map(item => transformBigIntForSerializationExcluding(item, excludeFields)) as unknown as T;
   }
 
   // Handle objects
@@ -29,7 +41,12 @@ export function transformBigIntForSerialization<T>(obj: T): T {
     const transformed: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(obj)) {
-      transformed[key] = transformBigIntForSerialization(value);
+      if (excludeFields.has(key)) {
+        // Skip transformation for excluded fields
+        transformed[key] = value;
+      } else {
+        transformed[key] = transformBigIntForSerializationExcluding(value, excludeFields);
+      }
     }
 
     return transformed as T;
@@ -75,8 +92,40 @@ export function transformItemForSerialization(item: any): any {
     }
   }
 
+  // Parse providerIds JSON string back to object
+  if (transformed.providerIds && typeof transformed.providerIds === 'string') {
+    try {
+      transformed.providerIds = JSON.parse(transformed.providerIds);
+    } catch (error) {
+      // If parsing fails, ensure it's at least an empty object
+      transformed.providerIds = {};
+    }
+  } else if (!transformed.providerIds) {
+    // Ensure field exists as empty object if null/undefined
+    transformed.providerIds = {};
+  }
+
+  // Convert timestamps back to Date strings for date fields
+  const dateFields = ['lastSyncAt', 'createdAt', 'updatedAt', 'dateCreated', 'dateModified', 'premiereDate', 'endDate'];
+  for (const field of dateFields) {
+    if (transformed[field] !== null && transformed[field] !== undefined) {
+      if (typeof transformed[field] === 'bigint') {
+        // Convert BigInt timestamp to ISO string
+        transformed[field] = new Date(Number(transformed[field])).toISOString();
+      } else if (typeof transformed[field] === 'number') {
+        // Convert number timestamp to ISO string
+        transformed[field] = new Date(transformed[field]).toISOString();
+      } else if (transformed[field] instanceof Date) {
+        // Convert Date to ISO string
+        transformed[field] = transformed[field].toISOString();
+      }
+    }
+  }
+
   // Apply general BigInt transformation to catch any other BigInt fields
-  return transformBigIntForSerialization(transformed);
+  // but exclude date fields that we've already converted
+  const excludeFields = new Set(['lastSyncAt', 'createdAt', 'updatedAt', 'dateCreated', 'dateModified', 'premiereDate', 'endDate']);
+  return transformBigIntForSerializationExcluding(transformed, excludeFields);
 }
 
 /**

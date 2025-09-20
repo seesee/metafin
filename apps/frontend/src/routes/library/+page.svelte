@@ -13,6 +13,7 @@
     year?: number;
     overview?: string;
     parentName?: string;
+    path?: string;
     library: {
       name: string;
     };
@@ -33,6 +34,14 @@
   let itemsPerPage = 24;
   let totalPages = 1;
   let totalItems = 0;
+
+  // Page size options
+  const pageSizeOptions = [12, 24, 48, 60, 100];
+
+  // Bulk selection
+  let bulkMode = false;
+  let selectedItems: Set<string> = new Set();
+  let showBulkEditModal = false;
 
   onMount(async () => {
     await loadLibraryItems();
@@ -130,6 +139,40 @@
     currentPage = Math.max(1, Math.min(page, totalPages));
     loadLibraryItems();
   }
+
+  function handlePageSizeChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    itemsPerPage = parseInt(target.value);
+    currentPage = 1; // Reset to first page when changing page size
+    loadLibraryItems();
+  }
+
+  function toggleBulkMode() {
+    bulkMode = !bulkMode;
+    if (!bulkMode) {
+      selectedItems.clear();
+      selectedItems = new Set();
+    }
+  }
+
+  function handleSelectionChange(event: CustomEvent<{ selectedItems: string[] }>) {
+    selectedItems = new Set(event.detail.selectedItems);
+  }
+
+  function selectAll() {
+    selectedItems = new Set(items.map(item => item.id));
+  }
+
+  function selectNone() {
+    selectedItems.clear();
+    selectedItems = new Set();
+  }
+
+  function openBulkEditModal() {
+    if (selectedItems.size > 0) {
+      showBulkEditModal = true;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -154,8 +197,56 @@
       >
         {loading ? 'Refreshing...' : 'Refresh'}
       </button>
+
+      <button
+        type="button"
+        class="px-4 py-2 {bulkMode ? 'bg-secondary text-secondary-foreground' : 'border border-border hover:bg-accent'} rounded-lg transition-colors"
+        on:click={toggleBulkMode}
+      >
+        {bulkMode ? 'Exit Bulk Mode' : 'Bulk Edit'}
+      </button>
     </div>
   </div>
+
+  <!-- Bulk Actions Bar -->
+  {#if bulkMode}
+    <div class="mb-4 p-4 bg-accent rounded-lg border border-border">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <span class="font-medium">Bulk Actions</span>
+          <span class="text-sm text-muted-foreground">
+            {selectedItems.size} of {items.length} selected
+          </span>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="text-xs px-2 py-1 border border-border rounded hover:bg-background"
+              on:click={selectAll}
+            >
+              Select All
+            </button>
+            <button
+              type="button"
+              class="text-xs px-2 py-1 border border-border rounded hover:bg-background"
+              on:click={selectNone}
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            disabled={selectedItems.size === 0}
+            on:click={openBulkEditModal}
+          >
+            Edit Selected ({selectedItems.size})
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Search and Filters -->
   <div class="mb-6 space-y-4">
@@ -194,6 +285,21 @@
           <option value="all">All Libraries</option>
           {#each libraries as library}
             <option value={library}>{library}</option>
+          {/each}
+        </select>
+      </div>
+
+      <!-- Page Size Filter -->
+      <div class="flex items-center gap-2">
+        <label for="page-size-filter" class="text-sm font-medium">Per page:</label>
+        <select
+          id="page-size-filter"
+          class="px-3 py-2 border border-border rounded-lg bg-background"
+          value={itemsPerPage}
+          on:change={handlePageSizeChange}
+        >
+          {#each pageSizeOptions as size}
+            <option value={size}>{size}</option>
           {/each}
         </select>
       </div>
@@ -253,7 +359,12 @@
       {/if}
     </div>
   {:else}
-    <LibraryGrid items={items} />
+    <LibraryGrid
+      items={items}
+      {bulkMode}
+      {selectedItems}
+      on:selectionChange={handleSelectionChange}
+    />
 
     <!-- Pagination -->
     {#if totalPages > 1}

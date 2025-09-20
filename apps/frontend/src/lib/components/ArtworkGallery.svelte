@@ -50,9 +50,10 @@
     error = null;
 
     try {
-      artworkCandidates = await apiClient.get<ArtworkCandidate[]>(
-        `library/items/${itemId}/artwork`
+      const response = await apiClient.get<{ candidates: ArtworkCandidate[] }>(
+        `library/items/${itemId}/artwork/candidates`
       );
+      artworkCandidates = response.candidates;
     } catch (err) {
       if (err instanceof ApiError) {
         error = `${err.code}: ${err.message}`;
@@ -213,8 +214,17 @@
       class="aspect-[2/3] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden"
     >
       {#if hasArtwork}
-        <!-- TODO: Replace with actual artwork URL -->
-        <div class="text-6xl opacity-50">🎨</div>
+        <img
+          src="/api/library/items/{itemId}/image/Primary?width=400&height=600"
+          alt="Current artwork"
+          class="w-full h-full object-cover"
+          on:error={(e) => {
+            // Fallback to placeholder if image fails to load
+            e.target.style.display = 'none';
+            e.target.nextElementSibling.style.display = 'flex';
+          }}
+        />
+        <div class="text-6xl opacity-50 hidden items-center justify-center w-full h-full">🎨</div>
         <div
           class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"
         ></div>

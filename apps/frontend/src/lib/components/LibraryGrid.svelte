@@ -1,7 +1,12 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { createEventDispatcher } from 'svelte';
   import AddToCollectionModal from './AddToCollectionModal.svelte';
   import StatusIndicator from './StatusIndicator.svelte';
+
+  const dispatch = createEventDispatcher<{
+    selectionChange: { selectedItems: string[] };
+  }>();
 
   interface LibraryItem {
     id: string;
@@ -11,6 +16,7 @@
     year?: number;
     overview?: string;
     parentName?: string;
+    path?: string;
     library: {
       name: string;
     };
@@ -19,6 +25,8 @@
   }
 
   export let items: LibraryItem[];
+  export let bulkMode: boolean = false;
+  export let selectedItems: Set<string> = new Set();
 
   let showAddToCollectionModal = false;
   let selectedItem: LibraryItem | null = null;
@@ -55,7 +63,30 @@
   }
 
   function handleItemClick(item: LibraryItem) {
-    goto(`/library/item/${item.id}`);
+    if (!bulkMode) {
+      goto(`/library/item/${item.id}`);
+    }
+  }
+
+  function handleItemSelect(item: LibraryItem, event: Event) {
+    event.stopPropagation();
+    const checkbox = event.target as HTMLInputElement;
+
+    if (checkbox.checked) {
+      selectedItems.add(item.id);
+    } else {
+      selectedItems.delete(item.id);
+    }
+
+    // Update the set reference to trigger reactivity
+    selectedItems = new Set(selectedItems);
+
+    // Dispatch selection change event
+    dispatch('selectionChange', { selectedItems: Array.from(selectedItems) });
+  }
+
+  function isSelected(item: LibraryItem): boolean {
+    return selectedItems.has(item.id);
   }
 
   function handleKeyDown(event: KeyboardEvent, item: LibraryItem) {
@@ -135,15 +166,38 @@
       on:keydown={(e) => handleKeyDown(e, item)}
       aria-label="View {item.name} details"
     >
-      <!-- Placeholder for artwork with enhanced status -->
+      <!-- Artwork display -->
       <div
         class="aspect-[2/3] mb-3 bg-muted rounded-lg flex items-center justify-center relative overflow-hidden"
       >
         {#if item.hasArtwork}
-          <!-- TODO: Add actual artwork display -->
-          <div class="text-4xl opacity-50">🎨</div>
+          <img
+            src="/api/library/items/{item.id}/image/Primary?width=300&height=450"
+            alt="{item.name} artwork"
+            class="w-full h-full object-cover"
+            loading="lazy"
+            on:error={(e) => {
+              // Fallback to placeholder if image fails to load
+              e.target.style.display = 'none';
+              e.target.nextElementSibling.style.display = 'flex';
+            }}
+          />
+          <div class="text-4xl opacity-50 hidden items-center justify-center w-full h-full">🎨</div>
         {:else}
           <div class="text-4xl opacity-30">{getTypeIcon(item.type)}</div>
+        {/if}
+
+        <!-- Bulk Selection Checkbox -->
+        {#if bulkMode}
+          <div class="absolute top-2 left-2 z-10">
+            <input
+              type="checkbox"
+              class="w-5 h-5 rounded border-2 border-white bg-white/80 checked:bg-primary checked:border-primary focus:ring-2 focus:ring-primary focus:ring-offset-0"
+              checked={isSelected(item)}
+              on:change={(e) => handleItemSelect(item, e)}
+              aria-label="Select {item.name}"
+            />
+          </div>
         {/if}
 
         <!-- Enhanced Status Indicators -->

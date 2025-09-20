@@ -17,6 +17,7 @@
     year?: number;
     overview?: string;
     parentName?: string;
+    path?: string;
     library: {
       name: string;
     };
@@ -148,6 +149,11 @@
   function formatRating(rating?: number): string {
     if (!rating) return 'Not rated';
     return `${rating}/10`;
+  }
+
+  function getFilename(path?: string): string {
+    if (!path) return 'Unknown';
+    return path.split('/').pop() || path;
   }
 
   function openAddToCollectionModal() {
@@ -331,6 +337,15 @@
                     {formatDate(item.lastSyncAt)}
                   </p>
                 </div>
+
+                {#if item.path}
+                  <div class="md:col-span-2">
+                    <h4 class="font-medium mb-1">Filename</h4>
+                    <p class="text-muted-foreground font-mono text-xs break-all">
+                      {getFilename(item.path)}
+                    </p>
+                  </div>
+                {/if}
               </div>
             </div>
           </div>

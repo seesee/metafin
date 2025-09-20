@@ -6,6 +6,8 @@ import {
   Body,
   Query,
   Param,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +21,7 @@ import { LibrarySyncService, SyncProgress } from './library-sync.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { JellyfinService } from '../jellyfin/jellyfin.service.js';
 import { ArtworkService } from '../metadata/artwork.service.js';
+import { Response } from 'express';
 import {
   transformItemsForSerialization,
   transformItemForSerialization
@@ -174,8 +177,8 @@ export class LibraryController {
 
     if (query.search) {
       where.OR = [
-        { name: { contains: query.search, mode: 'insensitive' } },
-        { overview: { contains: query.search, mode: 'insensitive' } },
+        { name: { contains: query.search } },
+        { overview: { contains: query.search } },
       ];
     }
 
@@ -317,18 +320,20 @@ export class LibraryController {
       },
     });
 
-    // Try to update Jellyfin item (non-blocking)
+    // Try to sync metadata back to Jellyfin using the hybrid approach
     try {
-      await this.jellyfinService.updateItemMetadata(
+      await this.jellyfinService.writeMetadataViaFile(
         currentItem.jellyfinId,
         updateData
       );
-    } catch (error) {
-      // Log the error but don't fail the request
-      console.warn(
-        `Failed to update Jellyfin item ${currentItem.jellyfinId}:`,
-        (error as Error).message
+      console.log(
+        `Successfully synced metadata to Jellyfin for item ${currentItem.jellyfinId}`
       );
+    } catch (error) {
+      console.warn(
+        `Failed to sync metadata to Jellyfin for item ${currentItem.jellyfinId}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      // Continue without failing the request - metadata is still saved locally
     }
 
     return transformItemForSerialization(updatedItem);
@@ -587,5 +592,66 @@ export class LibraryController {
       type: body.type,
       candidates,
     };
+  }
+
+  @Get('items/:id/image/:type')
+  @ApiOperation({
+    summary: 'Get item artwork image',
+    description: 'Proxy Jellyfin artwork images through the backend'
+  })
+  @ApiParam({ name: 'id', description: 'Library item ID' })
+  @ApiParam({ name: 'type', description: 'Image type (Primary, Backdrop, etc.)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Image data',
+    schema: { type: 'string', format: 'binary' }
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Item or image not found'
+  })
+  async getItemImage(
+    @Param('id') id: string,
+    @Param('type') type: string,
+    @Res() res: Response,
+    @Query('width') width?: string,
+    @Query('height') height?: string
+  ) {
+    // Get the item to check if it exists and get jellyfinId
+    const item = await this.databaseService.item.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        jellyfinId: true,
+        hasArtwork: true,
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Item not found');
+    }
+
+    if (!item.hasArtwork) {
+      throw new NotFoundException('Item has no artwork');
+    }
+
+    try {
+      // Use the existing downloadArtwork method
+      const imageBuffer = await this.jellyfinService.downloadArtwork(
+        item.jellyfinId,
+        type
+      );
+
+      // Set appropriate headers
+      res.set({
+        'Content-Type': 'image/jpeg', // Default to JPEG
+        'Cache-Control': 'public, max-age=86400', // Cache for 1 day
+      });
+
+      // Send the image data
+      res.send(imageBuffer);
+    } catch (error) {
+      throw new NotFoundException('Image not found or unavailable');
+    }
   }
 }
