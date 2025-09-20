@@ -52,6 +52,7 @@ export interface UpdateLibraryItemRequest {
   studios?: string[];
   premiereDate?: string;
   endDate?: string;
+  type?: 'Series' | 'Season' | 'Episode' | 'Movie';
 }
 
 export interface ArtworkCandidatesQuery {
@@ -142,7 +143,7 @@ export class LibraryController {
   })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 24, max: 100)' })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term for item names and descriptions' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term for item names, descriptions, and file paths' })
   @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by item type (Series, Season, Episode)' })
   @ApiQuery({ name: 'library', required: false, type: String, description: 'Filter by library name' })
   @ApiQuery({ name: 'hasArtwork', required: false, type: Boolean, description: 'Filter by artwork availability' })
@@ -179,6 +180,7 @@ export class LibraryController {
       where.OR = [
         { name: { contains: query.search } },
         { overview: { contains: query.search } },
+        { path: { contains: query.search } },
       ];
     }
 
@@ -298,6 +300,7 @@ export class LibraryController {
         name: updateData.name,
         overview: updateData.overview,
         year: updateData.year,
+        type: updateData.type,
         genres: updateData.genres
           ? JSON.stringify(updateData.genres)
           : undefined,
