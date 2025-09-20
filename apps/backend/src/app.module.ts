@@ -9,6 +9,7 @@ import { LibraryModule } from './library/library.module.js';
 import { MetadataModule } from './metadata/metadata.module.js';
 import { ProviderModule } from './providers/provider.module.js';
 import { CollectionsModule } from './collections/collections.module.js';
+import { OperationsModule } from './operations/operations.module.js';
 import { AppController } from './app.controller.js';
 
 @Module({
@@ -22,6 +23,7 @@ import { AppController } from './app.controller.js';
     MetadataModule,
     ProviderModule,
     CollectionsModule,
+    OperationsModule,
     HealthModule,
   ],
   controllers: [AppController],

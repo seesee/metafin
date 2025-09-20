@@ -4,6 +4,7 @@
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import LibraryGrid from '$lib/components/LibraryGrid.svelte';
   import SearchBar from '$lib/components/SearchBar.svelte';
+  import BulkEditModal from '$lib/components/BulkEditModal.svelte';
 
   interface LibraryItem {
     id: string;
@@ -42,6 +43,7 @@
   let bulkMode = false;
   let selectedItems: Set<string> = new Set();
   let showBulkEditModal = false;
+  let successMessage = '';
 
   onMount(async () => {
     await loadLibraryItems();
@@ -173,6 +175,19 @@
       showBulkEditModal = true;
     }
   }
+
+  function closeBulkEditModal() {
+    showBulkEditModal = false;
+  }
+
+  function handleBulkEditSuccess(event: CustomEvent<{ message: string }>) {
+    successMessage = event.detail.message;
+    setTimeout(() => {
+      successMessage = '';
+    }, 5000);
+    // Reload the library items to show updated data
+    loadLibraryItems();
+  }
 </script>
 
 <svelte:head>
@@ -180,6 +195,13 @@
 </svelte:head>
 
 <div class="container mx-auto px-6 py-8 max-w-7xl">
+  <!-- Success Message -->
+  {#if successMessage}
+    <div class="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400">
+      {successMessage}
+    </div>
+  {/if}
+
   <div class="flex items-center justify-between mb-8">
     <div>
       <h1 class="text-3xl font-bold">Media Library</h1>
@@ -251,7 +273,7 @@
   <!-- Search and Filters -->
   <div class="mb-6 space-y-4">
     <SearchBar
-      placeholder="Search by title or description..."
+      placeholder="Search by title, description, or file path..."
       on:search={handleSearch}
     />
 
@@ -407,3 +429,12 @@
     {/if}
   {/if}
 </div>
+
+<!-- Bulk Edit Modal -->
+<BulkEditModal
+  selectedItemIds={Array.from(selectedItems)}
+  {items}
+  isOpen={showBulkEditModal}
+  on:close={closeBulkEditModal}
+  on:success={handleBulkEditSuccess}
+/>

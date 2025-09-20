@@ -270,6 +270,13 @@
           📚 {item.library.name}
         </div>
 
+        <!-- File Path -->
+        {#if item.path}
+          <div class="text-xs text-muted-foreground truncate" title={item.path}>
+            📁 {item.path}
+          </div>
+        {/if}
+
         <!-- Overview -->
         {#if item.overview}
           <p class="text-xs text-muted-foreground line-clamp-2 leading-tight">

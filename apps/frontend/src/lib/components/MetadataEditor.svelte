@@ -38,6 +38,7 @@
     name: item.name,
     overview: item.overview || '',
     year: item.year || undefined,
+    type: item.type,
     genres: [...(item.genres || [])],
     tags: [...(item.tags || [])],
     studios: [...(item.studios || [])],
@@ -62,6 +63,7 @@
         name: formData.name,
         overview: formData.overview || undefined,
         year: formData.year || undefined,
+        type: formData.type,
         genres: formData.genres,
         tags: formData.tags,
         studios: formData.studios,
@@ -178,7 +180,7 @@
 
   <form class="space-y-6" on:submit|preventDefault={handleSave}>
     <!-- Basic Information -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div>
         <label for="name" class="block text-sm font-medium mb-2">Title</label>
         <input
@@ -188,6 +190,21 @@
           class="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           required
         />
+      </div>
+
+      <div>
+        <label for="type" class="block text-sm font-medium mb-2">Type</label>
+        <select
+          id="type"
+          bind:value={formData.type}
+          class="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          required
+        >
+          <option value="Movie">Movie</option>
+          <option value="Series">TV Series</option>
+          <option value="Season">Season</option>
+          <option value="Episode">Episode</option>
+        </select>
       </div>
 
       <div>
