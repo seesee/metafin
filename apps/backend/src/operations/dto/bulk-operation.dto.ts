@@ -19,7 +19,7 @@ export enum ScopeType {
 export class ItemScope {
   @ApiProperty({ enum: ScopeType })
   @IsEnum(ScopeType)
-  type: ScopeType;
+  type!: ScopeType;
 
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
@@ -105,12 +105,12 @@ export class MetadataChanges {
 export class BulkOperationRequest {
   @ApiProperty({ enum: OperationType })
   @IsEnum(OperationType)
-  operation: OperationType;
+  operation!: OperationType;
 
   @ApiProperty({ type: ItemScope })
   @ValidateNested()
   @Type(() => ItemScope)
-  scope: ItemScope;
+  scope!: ItemScope;
 
   @ApiProperty({ required: false, type: MetadataChanges })
   @IsOptional()
@@ -129,52 +129,18 @@ export class BulkOperationRequest {
   artworkAssignments?: Record<string, string>; // itemId -> artworkCandidateId
 }
 
-export class OperationPreviewResponse {
-  @ApiProperty()
-  previewToken: string;
-
-  @ApiProperty()
-  totalItems: number;
-
-  @ApiProperty()
-  estimatedApiCalls: number;
-
-  @ApiProperty()
-  changes: ItemDiff[];
-
-  @ApiProperty()
-  summary: DiffSummary;
-}
-
-export class ItemDiff {
-  @ApiProperty()
-  itemId: string;
-
-  @ApiProperty()
-  itemName: string;
-
-  @ApiProperty()
-  hasChanges: boolean;
-
-  @ApiProperty()
-  changes: MetadataChange[];
-
-  @ApiProperty()
-  conflicts: MetadataChange[];
-}
-
 export class MetadataChange {
   @ApiProperty()
-  field: string;
+  field!: string;
 
   @ApiProperty({ enum: ['added', 'modified', 'removed'] })
-  type: 'added' | 'modified' | 'removed';
+  type!: 'added' | 'modified' | 'removed';
 
   @ApiProperty()
-  before: unknown;
+  before!: unknown;
 
   @ApiProperty()
-  after: unknown;
+  after!: unknown;
 
   @ApiProperty({ required: false })
   hasConflict?: boolean;
@@ -183,49 +149,112 @@ export class MetadataChange {
   conflictReason?: string;
 }
 
+export class ItemDiff {
+  @ApiProperty()
+  itemId!: string;
+
+  @ApiProperty()
+  itemName!: string;
+
+  @ApiProperty()
+  hasChanges!: boolean;
+
+  @ApiProperty()
+  changes!: MetadataChange[];
+
+  @ApiProperty()
+  conflicts!: MetadataChange[];
+}
+
 export class DiffSummary {
   @ApiProperty()
-  totalItems: number;
+  totalItems!: number;
 
   @ApiProperty()
-  itemsWithChanges: number;
+  itemsWithChanges!: number;
 
   @ApiProperty()
-  itemsWithConflicts: number;
+  itemsWithConflicts!: number;
 
   @ApiProperty()
-  changesByField: Record<string, number>;
+  changesByField!: Record<string, number>;
+}
+
+export class OperationPreviewResponse {
+  @ApiProperty()
+  previewToken!: string;
+
+  @ApiProperty()
+  totalItems!: number;
+
+  @ApiProperty()
+  estimatedApiCalls!: number;
+
+  @ApiProperty()
+  changes!: ItemDiff[];
+
+  @ApiProperty()
+  summary!: DiffSummary;
 }
 
 export class ExecuteOperationRequest {
   @ApiProperty()
   @IsString()
-  previewToken: string;
+  previewToken!: string;
 }
 
 export class ExecuteOperationResponse {
   @ApiProperty()
-  jobId: string;
+  jobId!: string;
 
   @ApiProperty()
-  status: string;
+  status!: string;
 
   @ApiProperty()
   estimatedDuration?: string;
 }
 
+export class OperationLogEntry {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty({ required: false })
+  itemId?: string;
+
+  @ApiProperty({ required: false })
+  itemName?: string;
+
+  @ApiProperty()
+  operation!: string;
+
+  @ApiProperty({ required: false })
+  beforeJson?: Record<string, unknown>;
+
+  @ApiProperty({ required: false })
+  afterJson?: Record<string, unknown>;
+
+  @ApiProperty()
+  success!: boolean;
+
+  @ApiProperty({ required: false })
+  errorMessage?: string;
+
+  @ApiProperty()
+  createdAt!: Date;
+}
+
 export class JobStatusResponse {
   @ApiProperty()
-  id: string;
+  id!: string;
 
   @ApiProperty()
-  type: string;
+  type!: string;
 
   @ApiProperty({ enum: ['pending', 'running', 'completed', 'failed', 'cancelled'] })
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  status!: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
   @ApiProperty()
-  progress: number;
+  progress!: number;
 
   @ApiProperty({ required: false })
   startTime?: Date;
@@ -237,52 +266,23 @@ export class JobStatusResponse {
   errorMessage?: string;
 
   @ApiProperty()
-  itemsTotal: number;
+  itemsTotal!: number;
 
   @ApiProperty()
-  itemsProcessed: number;
+  itemsProcessed!: number;
 
   @ApiProperty()
-  itemsFailed: number;
+  itemsFailed!: number;
 
   @ApiProperty({ required: false })
   metadata?: Record<string, unknown>;
 
   @ApiProperty()
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty()
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiProperty({ required: false, type: [OperationLogEntry] })
   operationLogs?: OperationLogEntry[];
-}
-
-export class OperationLogEntry {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty({ required: false })
-  itemId?: string;
-
-  @ApiProperty({ required: false })
-  itemName?: string;
-
-  @ApiProperty()
-  operation: string;
-
-  @ApiProperty({ required: false })
-  beforeJson?: Record<string, unknown>;
-
-  @ApiProperty({ required: false })
-  afterJson?: Record<string, unknown>;
-
-  @ApiProperty()
-  success: boolean;
-
-  @ApiProperty({ required: false })
-  errorMessage?: string;
-
-  @ApiProperty()
-  createdAt: Date;
 }

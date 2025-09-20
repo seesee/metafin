@@ -290,7 +290,7 @@ export class JellyfinService {
         'JellyfinService'
       );
 
-      return response.data;
+      // Successfully updated via plugin
     } catch (error) {
       this.logger.error(
         `Plugin metadata update failed for item ${itemId}`,
@@ -378,7 +378,7 @@ export class JellyfinService {
   private generateNfoContent(item: unknown, _metadata: unknown): string {
     // This would generate NFO XML content
     // For now, this is a placeholder since we can't write files directly
-    return `<!-- NFO content for ${item.Name} -->`;
+    return `<!-- NFO content for ${(item as any).Name} -->`;
   }
 
   async updateItemMetadata(

@@ -52,7 +52,7 @@ export class BulkOperationsService {
     }
 
     // Fetch current metadata for all items
-    const items = await this.database.prisma.item.findMany({
+    const items = await this.database.item.findMany({
       where: { id: { in: itemIds } },
       select: {
         id: true,
@@ -66,15 +66,11 @@ export class BulkOperationsService {
         providerIds: true,
         premiereDate: true,
         endDate: true,
-        officialRating: true,
-        communityRating: true,
-        seasonNumber: true,
-        episodeNumber: true,
       },
     });
 
     // Generate proposed changes for each item
-    const diffItems = items.map(item => {
+    const diffItems = items.map((item: any) => {
       const current = this.mapItemToMetadata(item);
       const proposed = this.applyChangesToMetadata(current, request);
       return {
@@ -90,7 +86,7 @@ export class BulkOperationsService {
 
     // Map to response format
     const changes: ItemDiff[] = diffs.map(diff => {
-      const item = items.find(i => i.id === diff.itemId)!;
+      const item = items.find((i: any) => i.id === diff.itemId)!;
       return {
         itemId: diff.itemId,
         itemName: item.name,
@@ -141,7 +137,7 @@ export class BulkOperationsService {
     }
 
     // Create job record
-    const job = await this.database.prisma.job.create({
+    const job = await this.database.job.create({
       data: {
         type: 'bulk-operation',
         status: 'pending',
@@ -169,7 +165,7 @@ export class BulkOperationsService {
   }
 
   async getJobStatus(jobId: string, includeDetails = false): Promise<JobStatusResponse> {
-    const job = await this.prisma.job.findUnique({
+    const job = await this.database.job.findUnique({
       where: { id: jobId },
       include: {
         operationLogs: includeDetails
@@ -193,9 +189,9 @@ export class BulkOperationsService {
       type: job.type,
       status: job.status as any,
       progress: job.progress,
-      startTime: job.startTime,
-      endTime: job.endTime,
-      errorMessage: job.errorMessage,
+      startTime: job.startTime || undefined,
+      endTime: job.endTime || undefined,
+      errorMessage: job.errorMessage || undefined,
       itemsTotal: job.itemsTotal,
       itemsProcessed: job.itemsProcessed,
       itemsFailed: job.itemsFailed,
@@ -205,7 +201,7 @@ export class BulkOperationsService {
     };
 
     if (includeDetails && job.operationLogs) {
-      response.operationLogs = job.operationLogs.map(log => ({
+      response.operationLogs = job.operationLogs.map((log: any) => ({
         id: log.id,
         itemId: log.itemId,
         itemName: log.item?.name,
@@ -227,17 +223,17 @@ export class BulkOperationsService {
         return scope.itemIds || [];
 
       case ScopeType.LIBRARY_FILTER:
-        const libraryItems = await this.prisma.item.findMany({
+        const libraryItems = await this.database.item.findMany({
           where: {
             libraryId: scope.libraryId,
             ...(scope.itemType && { type: scope.itemType }),
           },
           select: { id: true },
         });
-        return libraryItems.map(item => item.id);
+        return libraryItems.map((item: any) => item.id);
 
       case ScopeType.SEARCH_QUERY:
-        const searchItems = await this.prisma.item.findMany({
+        const searchItems = await this.database.item.findMany({
           where: {
             OR: [
               { name: { contains: scope.searchQuery } },
@@ -249,7 +245,7 @@ export class BulkOperationsService {
           },
           select: { id: true },
         });
-        return searchItems.map(item => item.id);
+        return searchItems.map((item: any) => item.id);
 
       default:
         throw new BadRequestException(`Invalid scope type: ${scope.type}`);
@@ -268,10 +264,6 @@ export class BulkOperationsService {
       providerIds: item.providerIds ? JSON.parse(item.providerIds) : {},
       premiereDate: item.premiereDate,
       endDate: item.endDate,
-      officialRating: item.officialRating,
-      communityRating: item.communityRating,
-      seasonNumber: item.seasonNumber,
-      episodeNumber: item.episodeNumber,
     };
   }
 
@@ -307,7 +299,7 @@ export class BulkOperationsService {
   ): Promise<void> {
     try {
       // Update job status to running
-      await this.prisma.job.update({
+      await this.database.job.update({
         where: { id: jobId },
         data: {
           status: 'running',
@@ -329,12 +321,12 @@ export class BulkOperationsService {
             processed++;
           } catch (error) {
             failed++;
-            await this.logOperation(jobId, itemId, request.operation, false, error.message);
+            await this.logOperation(jobId, itemId, request.operation, false, (error as Error).message);
           }
 
           // Update progress
           const progress = (processed + failed) / itemIds.length;
-          await this.prisma.job.update({
+          await this.database.job.update({
             where: { id: jobId },
             data: {
               progress,
@@ -349,7 +341,7 @@ export class BulkOperationsService {
       }
 
       // Mark job as completed
-      await this.prisma.job.update({
+      await this.database.job.update({
         where: { id: jobId },
         data: {
           status: 'completed',
@@ -359,12 +351,12 @@ export class BulkOperationsService {
       });
     } catch (error) {
       // Mark job as failed
-      await this.prisma.job.update({
+      await this.database.job.update({
         where: { id: jobId },
         data: {
           status: 'failed',
           endTime: new Date(),
-          errorMessage: error.message,
+          errorMessage: (error as Error).message,
         },
       });
     }
@@ -375,7 +367,7 @@ export class BulkOperationsService {
     itemId: string,
     request: BulkOperationRequest,
   ): Promise<void> {
-    const item = await this.prisma.item.findUnique({
+    const item = await this.database.item.findUnique({
       where: { id: itemId },
     });
 
@@ -402,13 +394,13 @@ export class BulkOperationsService {
           if (request.changes.endDate !== undefined) updateData.endDate = request.changes.endDate;
           if (request.changes.officialRating !== undefined) updateData.officialRating = request.changes.officialRating;
 
-          const updatedItem = await this.prisma.item.update({
+          const updatedItem = await this.database.item.update({
             where: { id: itemId },
             data: updateData,
           });
 
           const afterJson = JSON.stringify(this.mapItemToMetadata(updatedItem));
-          await this.logOperation(jobId, itemId, request.operation, true, null, beforeJson, afterJson);
+          await this.logOperation(jobId, itemId, request.operation, true, undefined, beforeJson, afterJson);
         }
         break;
 
@@ -422,11 +414,11 @@ export class BulkOperationsService {
     itemId: string,
     operation: string,
     success: boolean,
-    errorMessage?: string,
+    errorMessage?: string | undefined,
     beforeJson?: string,
     afterJson?: string,
   ): Promise<void> {
-    await this.prisma.operationLog.create({
+    await this.database.operationLog.create({
       data: {
         jobId,
         itemId,
@@ -457,7 +449,7 @@ export class BulkOperationsService {
     type?: string;
     status?: string;
   }): Promise<JobStatusResponse[]> {
-    const jobs = await this.prisma.job.findMany({
+    const jobs = await this.database.job.findMany({
       where: {
         ...(options.type && { type: options.type }),
         ...(options.status && { status: options.status }),
@@ -466,14 +458,14 @@ export class BulkOperationsService {
       take: options.limit || 20,
     });
 
-    return jobs.map(job => ({
+    return jobs.map((job: any) => ({
       id: job.id,
       type: job.type,
       status: job.status as any,
       progress: job.progress,
-      startTime: job.startTime,
-      endTime: job.endTime,
-      errorMessage: job.errorMessage,
+      startTime: job.startTime || undefined,
+      endTime: job.endTime || undefined,
+      errorMessage: job.errorMessage || undefined,
       itemsTotal: job.itemsTotal,
       itemsProcessed: job.itemsProcessed,
       itemsFailed: job.itemsFailed,
