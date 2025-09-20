@@ -141,6 +141,11 @@ export class LibrarySyncService {
         result.librariesSynced++;
       }
 
+      // Stage 1.5: Sync global collections
+      this.logger.log('Syncing global collections from Jellyfin', 'LibrarySyncService');
+      await this.syncCollections();
+      result.librariesSynced++; // Count collections as an additional "library"
+
       // Stage 2: Sync library items
       this.currentSync.stage = 'syncing_items';
       this.logger.log('Syncing library items', 'LibrarySyncService');
@@ -519,4 +524,132 @@ export class LibrarySyncService {
       Date.now() + estimatedRemainingMs
     );
   }
+
+  private async syncCollections(): Promise<void> {
+    try {
+      // Get all collections from Jellyfin
+      const jellyfinCollections = await this.jellyfin.getCollections();
+
+      this.logger.log(
+        `Found ${jellyfinCollections.length} collections in Jellyfin`,
+        'LibrarySyncService'
+      );
+
+      for (const collection of jellyfinCollections) {
+        if (!this.currentSync) break; // Check for cancellation
+
+        try {
+          await this.syncCollection(collection);
+        } catch (error) {
+          this.logger.warn(
+            `Failed to sync collection ${collection.Name}: ${error}`,
+            'LibrarySyncService'
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to get collections from Jellyfin: ${error}`,
+        'LibrarySyncService'
+      );
+      throw error;
+    }
+  }
+
+  private async syncCollection(collection: any): Promise<void> {
+    const jellyfinId = collection.Id;
+    const name = collection.Name;
+
+    if (!jellyfinId || !name) {
+      this.logger.warn(
+        `Collection missing required fields: ${JSON.stringify(collection)}`,
+        'LibrarySyncService'
+      );
+      return;
+    }
+
+    // Check if collection already exists
+    const existingCollection = await this.database.collection.findFirst({
+      where: { jellyfinId },
+    });
+
+    const collectionData = {
+      name,
+      jellyfinId,
+      type: 'jellyfin',
+      lastBuiltAt: new Date(),
+    };
+
+    let collectionRecord;
+
+    if (existingCollection) {
+      collectionRecord = await this.database.collection.update({
+        where: { id: existingCollection.id },
+        data: collectionData,
+      });
+      this.logger.debug(
+        `Updated collection: ${name}`,
+        'LibrarySyncService'
+      );
+    } else {
+      collectionRecord = await this.database.collection.create({
+        data: collectionData,
+      });
+      this.logger.debug(
+        `Created collection: ${name}`,
+        'LibrarySyncService'
+      );
+    }
+
+    // Sync collection items
+    await this.syncCollectionItems(collection, collectionRecord.id);
+  }
+
+  private async syncCollectionItems(collection: any, collectionId: string): Promise<void> {
+    try {
+      // Get items in this collection from Jellyfin
+      const collectionItems = await this.jellyfin.getCollectionItems(collection.Id);
+
+      // Clear existing collection items
+      await this.database.collectionItem.deleteMany({
+        where: { collectionId },
+      });
+
+      // Add current collection items
+      for (let i = 0; i < collectionItems.length; i++) {
+        const item = collectionItems[i];
+
+        // Find the corresponding item in our database
+        const dbItem = await this.database.item.findUnique({
+          where: { jellyfinId: item.Id },
+        });
+
+        if (dbItem) {
+          await this.database.collectionItem.create({
+            data: {
+              collectionId,
+              itemId: dbItem.id,
+              sortIndex: i,
+            },
+          });
+        } else {
+          this.logger.debug(
+            `Collection item ${item.Name} (${item.Id}) not found in database`,
+            'LibrarySyncService'
+          );
+        }
+      }
+
+      this.logger.debug(
+        `Synced ${collectionItems.length} items for collection ${collection.Name}`,
+        'LibrarySyncService'
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to sync items for collection ${collection.Name}: ${error}`,
+        'LibrarySyncService'
+      );
+    }
+  }
+
 }
