@@ -141,10 +141,20 @@ export class LibrarySyncService {
         result.librariesSynced++;
       }
 
-      // Stage 1.5: Sync global collections
+      // Stage 1.5: Sync global collections (non-blocking)
       this.logger.log('Syncing global collections from Jellyfin', 'LibrarySyncService');
-      await this.syncCollections();
-      result.librariesSynced++; // Count collections as an additional "library"
+      try {
+        await this.syncCollections();
+        result.librariesSynced++; // Count collections as an additional "library"
+        this.logger.log('Successfully completed collection sync', 'LibrarySyncService');
+      } catch (error) {
+        this.logger.warn(
+          `Collection sync failed but continuing with library sync: ${error instanceof Error ? error.message : error}`,
+          'LibrarySyncService'
+        );
+        // Don't increment librariesSynced if collection sync failed
+        // Don't throw - let the main sync continue
+      }
 
       // Stage 2: Sync library items
       this.currentSync.stage = 'syncing_items';
@@ -536,24 +546,28 @@ export class LibrarySyncService {
         try {
           await this.syncCollection(collection);
         } catch (error) {
+          const collectionName = (collection as any).Name || (collection as any).name || 'Unknown';
           this.logger.warn(
-            `Failed to sync collection ${collection.name}: ${error}`,
+            `Failed to sync collection ${collectionName}: ${error instanceof Error ? error.message : error}`,
             'LibrarySyncService'
           );
+          // Continue with other collections instead of failing the entire sync
         }
       }
     } catch (error) {
       this.logger.error(
-        `Failed to get collections from Jellyfin: ${error}`,
+        `Failed to get collections from Jellyfin: ${error instanceof Error ? error.message : error}`,
+        error instanceof Error ? error.stack : undefined,
         'LibrarySyncService'
       );
-      throw error;
+      // Don't throw error to prevent entire sync from failing
+      // Collections sync is optional and shouldn't break the entire library sync
     }
   }
 
   private async syncCollection(collection: any): Promise<void> {
-    const jellyfinId = collection.id;
-    const name = collection.name;
+    const jellyfinId = (collection as any).Id || (collection as any).id;
+    const name = (collection as any).Name || (collection as any).name;
 
     if (!jellyfinId || !name) {
       this.logger.warn(
@@ -603,7 +617,7 @@ export class LibrarySyncService {
   private async syncCollectionItems(collection: any, collectionId: string): Promise<void> {
     try {
       // Get items in this collection from Jellyfin
-      const collectionItems = await this.jellyfin.getCollectionItems(collection.id);
+      const collectionItems = await this.jellyfin.getCollectionItems((collection as any).Id || (collection as any).id);
 
       // Clear existing collection items
       await this.database.collectionItem.deleteMany({
@@ -616,7 +630,7 @@ export class LibrarySyncService {
 
         // Find the corresponding item in our database
         const dbItem = await this.database.item.findUnique({
-          where: { jellyfinId: item.id },
+          where: { jellyfinId: (item as any).Id || (item as any).id },
         });
 
         if (dbItem) {
@@ -629,19 +643,19 @@ export class LibrarySyncService {
           });
         } else {
           this.logger.debug(
-            `Collection item ${item.name} (${item.id}) not found in database`,
+            `Collection item ${(item as any).Name || (item as any).name} (${(item as any).Id || (item as any).id}) not found in database`,
             'LibrarySyncService'
           );
         }
       }
 
       this.logger.debug(
-        `Synced ${collectionItems.length} items for collection ${collection.name}`,
+        `Synced ${collectionItems.length} items for collection ${(collection as any).Name || (collection as any).name}`,
         'LibrarySyncService'
       );
     } catch (error) {
       this.logger.warn(
-        `Failed to sync items for collection ${collection.name}: ${error}`,
+        `Failed to sync items for collection ${(collection as any).Name || (collection as any).name}: ${error}`,
         'LibrarySyncService'
       );
     }
